@@ -1,0 +1,40 @@
+# Override de desarrollo — usar junto con docker-compose.yml
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Cambia el servidor a modo desarrollo (next dev) y expone puerto 3000.
+# No incluye nginx en desarrollo.
+
+services:
+  web:
+    command: sh -c "apt-get update && apt-get install -y openssl && npm install && npm run prisma:generate && npm run prisma:deploy && npm run prisma:seed && npm run dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - node-modules:/app/node_modules
+      - media:/app/media
+      - exports:/app/exports
+      - config:/app/config
+
+  worker:
+    command: sh -c "apt-get update && apt-get install -y openssl && while [ ! -x node_modules/.bin/prisma ]; do sleep 2; done; npm run prisma:generate && npm run worker:dev"
+    volumes:
+      - .:/app
+      - node-modules:/app/node_modules
+      - media:/app/media
+      - exports:/app/exports
+      - config:/app/config
+
+  nginx:
+    profiles: [disabled]
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+volumes:
+  node-modules:

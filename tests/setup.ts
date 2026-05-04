@@ -1,0 +1,21 @@
+import '@testing-library/jest-dom/vitest';
+
+process.env.APP_URL ??= 'http://localhost:3000';
+process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/limpiador_test';
+process.env.REDIS_URL ??= 'redis://localhost:6379';
+process.env.SESSION_SECRET ??= 'test-session-secret-with-at-least-32-chars';
+process.env.SESSION_COOKIE_NAME ??= 'limpiador_test_session';
+process.env.SESSION_TTL_SECONDS ??= '3600';
+process.env.LOGIN_RATE_LIMIT_WINDOW_SECONDS ??= '900';
+process.env.LOGIN_RATE_LIMIT_MAX ??= '5';
+process.env.API_RATE_LIMIT_WINDOW_SECONDS ??= '60';
+process.env.API_RATE_LIMIT_MAX ??= '120';
+process.env.WHATSAPP_GRAPH_API_VERSION ??= 'v21.0';
+process.env.WHATSAPP_PHONE_NUMBER_ID ??= 'test-phone-number-id';
+process.env.WHATSAPP_BUSINESS_ACCOUNT_ID ??= 'test-waba-id';
+process.env.WHATSAPP_ACCESS_TOKEN ??= 'test-access-token';
+process.env.WHATSAPP_APP_SECRET ??= 'test-app-secret';
+process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN ??= 'test-verify-token';
+process.env.PRIVATE_MEDIA_ROOT ??= './tmp/test-media';
+process.env.PRIVATE_EXPORT_ROOT ??= './tmp/test-exports';
+process.env.WHATSAPP_WINDOW_BYPASS = 'false';

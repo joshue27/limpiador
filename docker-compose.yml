@@ -1,0 +1,117 @@
+# Limpiador WhatsApp Cloud — Producción
+# Uso: docker compose up -d --scale web=2
+# Desarrollo: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  web:
+    build: .
+    working_dir: /app
+    command: sh -c "npx prisma migrate deploy && node server.js"
+    env_file: .env
+    expose:
+      - "3000"
+    volumes:
+      - media:/app/media
+      - exports:/app/exports
+      - config:/app/config
+    environment:
+      CONFIG_DIR: /app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  worker:
+    build: .
+    working_dir: /app
+    command: sh -c "npx tsx src/worker/index.ts"
+    env_file: .env
+    volumes:
+      - media:/app/media
+      - exports:/app/exports
+      - config:/app/config
+    environment:
+      CONFIG_DIR: /app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/api/health > /dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: limpiador
+      POSTGRES_USER: limpiador
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+    expose:
+      - "5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U limpiador -d limpiador"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  postgres-data:
+  redis-data:
+  media:
+  exports:
+  config:

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de Usuario — Limpiador WhatsApp Cloud v1.0</title>
+<style>
+  :root { --accent: #075e54; --accent-light: #0d9488; --bg: #f8fafc; --card: #fff; --text: #1e293b; --muted: #64748b; --border: #e2e8f0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; display: flex; }
+  
+  /* Sidebar */
+  aside { width: 260px; min-height: 100vh; background: #0f172a; color: #e2e8f0; padding: 24px 16px; position: sticky; top: 0; overflow-y: auto; flex-shrink: 0; }
+  aside h2 { font-size: 1.1rem; color: #fff; margin-bottom: 4px; }
+  aside small { color: #5eead4; display: block; margin-bottom: 20px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; }
+  aside a { display: block; color: #94a3b8; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; margin-bottom: 2px; transition: all 0.15s; }
+  aside a:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  aside a.active { background: var(--accent); color: #fff; }
+  
+  /* Main */
+  main { flex: 1; max-width: 860px; padding: 32px 40px; min-width: 0; }
+  
+  header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--border); }
+  header h1 { font-size: 2.2rem; font-weight: 800; color: var(--accent); letter-spacing: -0.02em; }
+  header p { color: var(--muted); margin-top: 6px; font-size: 1rem; }
+  
+  section { margin-bottom: 36px; }
+  h2 { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+  h3 { font-size: 1.05rem; font-weight: 600; color: #334155; margin: 20px 0 8px; }
+  p { margin-bottom: 8px; color: #475569; }
+  
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 12px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  
+  ul, ol { padding-left: 22px; margin: 6px 0 12px; color: #475569; }
+  li { margin-bottom: 4px; }
+  
+  .step { display: flex; gap: 12px; align-items: flex-start; margin: 10px 0; padding: 10px 14px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0; }
+  .step-num { background: var(--accent); color: #fff; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; flex-shrink: 0; }
+  .step p { margin: 0; }
+  
+  .tip { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 14px 0; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+  .tip strong { color: #1d4ed8; }
+  
+  .warn { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 14px 0; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+  .warn strong { color: #b45309; }
+  
+  .info { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #10b981; padding: 12px 16px; margin: 14px 0; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+  .info strong { color: #047857; }
+  
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #be123c; font-family: 'SF Mono', 'Fira Code', monospace; }
+  
+  table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 14px 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  th { background: #f8fafc; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  th, td { padding: 10px 14px; text-align: left; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  
+  .screenshot { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 2px dashed #cbd5e1; border-radius: 8px; padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 0.85rem; margin: 16px 0; }
+  
+  footer { text-align: center; padding: 32px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 40px; }
+  
+  @media (max-width: 860px) { body { flex-direction: column; } aside { width: 100%; min-height: auto; position: static; } main { padding: 20px; } .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<aside>
+  <h2>Limpiador</h2>
+  <small>Manual v1.0</small>
+  <a href="#resumen">📊 Resumen</a>
+  <a href="#inbox">💬 Conversaciones</a>
+  <a href="#chat">💭 Chat interno</a>
+  <a href="#contactos">👥 Contactos</a>
+  <a href="#plantillas">📋 Plantillas</a>
+  <a href="#campanas">📢 Campañas</a>
+  <a href="#archivados">📎 Archivados</a>
+  <a href="#exportaciones">📦 Exportaciones</a>
+  <a href="#auditoria">🔍 Auditoría</a>
+  <a href="#configuracion">⚙️ Configuración</a>
+  <a href="#faq" style="margin-top: 16px; border-top: 1px solid #1e293b; padding-top: 12px;">❓ Preguntas frecuentes</a>
+</aside>
+
+<main>
+
+<header>
+  <h1>Manual de Usuario</h1>
+  <p>Guía completa para administradores y operadores de Limpiador WhatsApp Cloud</p>
+</header>
+
+<!-- ═══════════ RESUMEN ═══════════ -->
+<section id="resumen">
+<h2>📊 Resumen (Dashboard)</h2>
+<p>El panel de inicio presenta un resumen visual de toda la operación. La información mostrada depende del rol del usuario.</p>
+
+<div class="grid-3">
+  <div class="card">
+    <h3>👥 Contactos</h3>
+    <p>Total de contactos registrados en la base de datos.</p>
+  </div>
+  <div class="card">
+    <h3>💬 Conversaciones</h3>
+    <p>Cantidad de chats activos en el sistema.</p>
+  </div>
+  <div class="card">
+    <h3>🔴 No leídos</h3>
+    <p>Mensajes pendientes de lectura en todas las conversaciones.</p>
+  </div>
+  <div class="card">
+    <h3>📎 Archivados</h3>
+    <p>Archivos multimedia marcados como importantes.</p>
+  </div>
+  <div class="card">
+    <h3>📢 Campañas</h3>
+    <p>Total de campañas creadas (borradores, en envío y finalizadas).</p>
+  </div>
+  <div class="card">
+    <h3>✅ Plantillas</h3>
+    <p>Plantillas de mensaje aprobadas por Meta y listas para usar.</p>
+  </div>
+</div>
+<p>Cada tarjeta es un enlace directo a la sección correspondiente.</p>
+
+<div class="card">
+  <h3>📈 Mensajes por día (gráfica)</h3>
+  <p>Gráfica de barras con los mensajes enviados (verde oscuro) y recibidos (verde claro) durante los últimos 7 días. Para administradores, una segunda gráfica horizontal muestra los mensajes enviados por departamento en los últimos 30 días.</p>
+  <div class="screenshot">📸 [Gráfica de mensajes por día]</div>
+</div>
+
+<div class="card">
+  <h3>📱 Salud de WhatsApp</h3>
+  <p>Solo visible para administradores. Muestra el estado del número de teléfono conectado a WhatsApp Business:</p>
+  <ul>
+    <li><span class="badge badge-green">Saludable</span> — Sin problemas de calidad.</li>
+    <li><span class="badge badge-yellow">Regular</span> — La calidad del número está disminuyendo.</li>
+    <li><span class="badge badge-red">Crítica</span> — El número puede ser restringido por Meta.</li>
+  </ul>
+  <p>También muestra el <strong>límite diario de mensajes</strong> permitido por Meta para ese número.</p>
+</div>
+</section>
+
+<!-- ═══════════ INBOX ═══════════ -->
+<section id="inbox">
+<h2>💬 Conversaciones (Inbox)</h2>
+<p>El centro de operaciones para la atención al cliente vía WhatsApp. Aquí se visualizan, responden y gestionan todas las conversaciones entrantes y salientes.</p>
+
+<h3>Vista general</h3>
+<ul>
+  <li><strong>Columna izquierda (bandeja)</strong>: lista de conversaciones ordenadas por actividad reciente. Cada fila muestra el nombre del contacto, último mensaje, estado, etiquetas y hora.</li>
+  <li><strong>Panel derecho (chat)</strong>: historial completo de mensajes de la conversación seleccionada, con opciones para responder, adjuntar archivos, citar mensajes y más.</li>
+</ul>
+
+<div class="screenshot">📸 [Vista del inbox con bandeja izquierda y panel de chat derecho]</div>
+
+<h3>Filtros de bandeja</h3>
+<p>El panel de filtros permite buscar conversaciones por:</p>
+<ul>
+  <li><strong>Texto libre</strong>: busca en nombre, teléfono, WA ID y cuerpo de mensajes.</li>
+  <li><strong>Estado</strong>: Sin asignar, Esperando menú, En cola, En atención.</li>
+  <li><strong>Usuario asignado</strong>: filtra por el operador que tiene la conversación.</li>
+  <li><strong>Departamento</strong>: filtra por el área asignada.</li>
+  <li><strong>Etiqueta</strong>: filtra por etiquetas del contacto.</li>
+</ul>
+<p>Los filtros activos se muestran como píldoras. Haga clic en <strong>Aplicar filtros</strong> para ver los resultados.</p>
+
+<h3>Iniciar un nuevo chat</h3>
+<div class="step"><span class="step-num">1</span><p>Haga clic en <strong>＋ Nuevo chat</strong> en la parte superior de la bandeja.</p></div>
+<div class="step"><span class="step-num">2</span><p>Ingrese un número de teléfono (formato internacional, ej: <code>+50255551234</code>) o seleccione un contacto existente del desplegable.</p></div>
+<div class="step"><span class="step-num">3</span><p>Opcional: escriba un nombre visible para el contacto.</p></div>
+<div class="step"><span class="step-num">4</span><p>Haga clic en <strong>Abrir chat</strong>. La conversación aparecerá en la bandeja.</p></div>
+
+<div class="tip"><strong>Nota:</strong> Para poder enviar mensajes a un número, debe estar registrado como <strong>tester</strong> en el panel de Meta Developers, y el contacto debe haber enviado al menos un mensaje en las últimas 24 horas (o tener activado el bypass de ventana en desarrollo).</div>
+
+<h3>Responder mensajes</h3>
+<div class="step"><span class="step-num">1</span><p>Escriba su mensaje en el campo de texto en la parte inferior del chat.</p></div>
+<div class="step"><span class="step-num">2</span><p>Presione <strong>Enter</strong> para enviar, o <strong>Shift + Enter</strong> para un salto de línea.</p></div>
+<div class="step"><span class="step-num">3</span><p>El mensaje aparece inmediatamente en el chat (envío optimista) y se confirma cuando WhatsApp lo recibe.</p></div>
+
+<div class="info"><strong>Adjuntos:</strong> Puede enviar imágenes (JPG, PNG), PDFs y documentos de Office (Word, Excel, PowerPoint). Haga clic en <strong>➕</strong> para seleccionar un archivo. Los archivos aparecen optimistamente en el chat mientras se envían.</div>
+
+<h3>Menú automático de routing</h3>
+<p>Cuando un cliente escribe por primera vez (o después de 24 horas sin actividad), el sistema envía automáticamente un mensaje de menú con opciones numeradas:</p>
+<div class="card">
+  <p><em>"Hola 👋 ¿Con qué área desea comunicarse?<br>1. Atención al Estudiante<br>2. Contabilidad<br>3. Coordinación Académica<br>4. Ventas<br>5. Informática<br>Responda con el número del área."</em></p>
+</div>
+<p>El cliente responde con un número y la conversación se asigna automáticamente al departamento correspondiente, quedando en estado <strong>En cola</strong> para que los operadores de ese departamento la atiendan.</p>
+
+<h3>Acciones sobre la conversación</h3>
+<table>
+  <tr><th>Acción</th><th>Descripción</th><th>Visible para</th></tr>
+  <tr><td><strong>Atender</strong></td><td>Toma la conversación de la cola del departamento. El estado cambia a <strong>En atención</strong>.</td><td>Operadores del depto.</td></tr>
+  <tr><td><strong>Transferir</strong></td><td>Envía la conversación a otro departamento o usuario específico. Se notifica por email si está configurado.</td><td>Admin / Dueño</td></tr>
+  <tr><td><strong>Eliminar</strong></td><td>Borra permanentemente la conversación, los mensajes y los archivos multimedia del disco.</td><td>Solo Admin</td></tr>
+  <tr><td><strong>Archivar adjunto</strong></td><td>Marca un archivo (imagen, PDF, etc.) como archivado para que aparezca en la sección Archivados y se incluya en exportaciones.</td><td>Todos</td></tr>
+  <tr><td><strong>Citar (↩)</strong></td><td>Responde a un mensaje específico, mostrando una vista previa del mensaje citado.</td><td>Todos</td></tr>
+  <tr><td><strong>Ocultar (⋯)</strong></td><td>Oculta un mensaje solo para usted o para todos los participantes.</td><td>Todos</td></tr>
+  <tr><td><strong>Reenviar</strong></td><td>Aparece en mensajes fallidos. Reenvía el mensaje sin necesidad de reescribirlo.</td><td>Todos</td></tr>
+</table>
+
+<h3>Búsqueda dentro del chat</h3>
+<div class="step"><span class="step-num">1</span><p>Escriba un término en la barra de búsqueda sobre el historial de mensajes.</p></div>
+<div class="step"><span class="step-num">2</span><p>Presione <strong>🔎</strong> o Enter. Las coincidencias se resaltan en <mark>amarillo</mark>.</p></div>
+<div class="step"><span class="step-num">3</span><p>Use los botones <strong>⬅️ ➡️</strong> para navegar entre coincidencias. El chat hace scroll automático a cada resultado.</p></div>
+<div class="step"><span class="step-num">4</span><p>Haga clic en <strong>❌</strong> para limpiar la búsqueda y volver al último mensaje.</p></div>
+
+<h3>Etiquetas de contacto</h3>
+<p>En la cabecera de cada conversación puede agregar o quitar etiquetas del contacto. Las etiquetas disponibles se administran en <strong>Configuración → Etiquetas</strong>.</p>
+</section>
+
+<!-- ═══════════ CHAT INTERNO ═══════════ -->
+<section id="chat">
+<h2>💭 Chat interno</h2>
+<p>Sistema de mensajería instantánea entre los miembros del equipo. Similar a Slack o WhatsApp, pero integrado en la plataforma.</p>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>💬 Chat general</h3>
+    <p>Canal compartido donde todos los usuarios del sistema pueden escribir. Ideal para anuncios y coordinación general.</p>
+  </div>
+  <div class="card">
+    <h3>👤 Mensajes directos</h3>
+    <p>Conversaciones privadas uno a uno. Seleccione un usuario de la lista lateral para iniciar un chat directo.</p>
+  </div>
+</div>
+
+<h3>Estado en línea</h3>
+<ul>
+  <li><span style="color:#10b981">●</span> <strong>En línea</strong>: activo en los últimos 2 minutos.</li>
+  <li><span style="color:#d1d5db">●</span> <strong>Ausente</strong>: sin actividad reciente.</li>
+</ul>
+
+<h3>Notificaciones</h3>
+<p>Cuando reciba un mensaje nuevo, aparecerá una notificación toast en la esquina inferior derecha con el nombre del remitente y se reproducirá un sonido (si no está silenciado). Las notificaciones pueden silenciarse en <strong>Configuración → Perfil</strong>.</p>
+
+<h3>Exportar historial</h3>
+<p>El chat interno puede exportarse como CSV desde <strong>Exportaciones → Chat interno</strong>. El archivo incluye fecha, remitente, destinatario y contenido del mensaje.</p>
+</section>
+
+<!-- ═══════════ CONTACTOS ═══════════ -->
+<section id="contactos">
+<h2>👥 Contactos</h2>
+<p>Gestión completa de la base de datos de contactos. Cada contacto se identifica por su número de teléfono.</p>
+
+<h3>Buscar contactos</h3>
+<p>Use la barra de búsqueda superior para filtrar por nombre, teléfono, WA ID o etiquetas. Los resultados se actualizan al presionar Enter.</p>
+
+<h3>Crear contacto manualmente</h3>
+<div class="step"><span class="step-num">1</span><p>Complete el campo <strong>Teléfono</strong> (obligatorio, formato internacional).</p></div>
+<div class="step"><span class="step-num">2</span><p>Opcional: agregue <strong>Nombre</strong>, <strong>WA ID</strong> y <strong>Origen del consentimiento</strong>.</p></div>
+<div class="step"><span class="step-num">3</span><p>Seleccione etiquetas del catálogo usando las píldoras.</p></div>
+<div class="step"><span class="step-num">4</span><p>Haga clic en <strong>Crear contacto</strong>.</p></div>
+
+<h3>Importar desde CSV</h3>
+<div class="step"><span class="step-num">1</span><p>Haga clic en el área de carga o arrastre un archivo CSV.</p></div>
+<div class="step"><span class="step-num">2</span><p>El sistema detecta automáticamente las columnas <code>phone</code>, <code>display_name</code>, <code>wa_id</code>, <code>tags</code>.</p></div>
+<div class="step"><span class="step-num">3</span><p>Revise la vista previa y haga clic en <strong>Importar N contactos</strong>.</p></div>
+<div class="tip"><strong>Formato del CSV:</strong> La primera fila debe contener los nombres de columna. Descargue la plantilla de ejemplo desde el enlace bajo el área de carga.</div>
+
+<h3>Editar contacto</h3>
+<div class="step"><span class="step-num">1</span><p>Haga clic en <strong>Editar</strong> en la fila del contacto.</p></div>
+<div class="step"><span class="step-num">2</span><p>Modifique los campos: nombre, teléfono, etiquetas, estado (bloqueado/baja), operador asignado.</p></div>
+<div class="step"><span class="step-num">3</span><p>Haga clic en <strong>Guardar</strong>.</p></div>
+
+<h3>Enviar mensaje WhatsApp</h3>
+<p>Haga clic en <strong>Enviar mensaje</strong> para abrir inmediatamente un chat con ese contacto en el Inbox.</p>
+
+<h3>Eliminar contacto</h3>
+<p>Haga clic en <strong>Eliminar</strong>. Aparecerá un popover de confirmación. Al confirmar, se elimina el contacto y todas sus conversaciones asociadas.</p>
+</section>
+
+<!-- ═══════════ PLANTILLAS ═══════════ -->
+<section id="plantillas">
+<h2>📋 Plantillas de mensaje</h2>
+<p>Las plantillas son mensajes predefinidos que deben ser aprobados por Meta antes de usarse en campañas masivas. WhatsApp exige este proceso para prevenir spam.</p>
+
+<h3>Crear una plantilla</h3>
+<div class="step"><span class="step-num">1</span><p><strong>Nombre</strong>: identificador único sin espacios ni caracteres especiales (ej: <code>saludo_bienvenida</code>).</p></div>
+<div class="step"><span class="step-num">2</span><p><strong>Idioma</strong>: código de idioma (ej: <code>es</code> para español).</p></div>
+<div class="step"><span class="step-num">3</span><p><strong>Categoría</strong>: Marketing, Utilidad o Autenticación.</p></div>
+<div class="step"><span class="step-num">4</span><p><strong>Encabezado</strong> (opcional): texto, imagen, video o documento que aparece antes del cuerpo.</p></div>
+<div class="step"><span class="step-num">5</span><p><strong>Cuerpo</strong>: texto principal del mensaje. Use los botones <strong>+ Nombre</strong>, <strong>+ Teléfono</strong>, <strong>+ WA ID</strong> para insertar variables <code>{{1}}</code>, <code>{{2}}</code>, <code>{{3}}</code>. Estas variables se reemplazan con los datos reales del contacto al enviar la campaña.</p></div>
+<div class="step"><span class="step-num">6</span><p><strong>Pie de página</strong> (opcional): texto pequeño al final.</p></div>
+<div class="step"><span class="step-num">7</span><p><strong>Botones</strong> (hasta 3): de respuesta rápida o enlace URL.</p></div>
+<div class="step"><span class="step-num">8</span><p>Haga clic en <strong>Crear y enviar a Meta</strong>.</p></div>
+
+<div class="warn"><strong>Importante:</strong> Meta revisa cada plantilla. El proceso puede tomar minutos u horas. El estado aparece en la tabla: <span class="badge badge-yellow">Pendiente</span> → <span class="badge badge-yellow">En revisión</span> → <span class="badge badge-green">Aprobada</span> o <span class="badge badge-red">Rechazada</span>. Solo las plantillas <strong>Aprobadas</strong> pueden usarse en campañas.</div>
+
+<h3>Variables de plantilla</h3>
+<table>
+  <tr><th>Variable</th><th>Pill</th><th>Se reemplaza con</th></tr>
+  <tr><td><code>{{1}}</code></td><td>+ Nombre</td><td><code>displayName</code> del contacto</td></tr>
+  <tr><td><code>{{2}}</code></td><td>+ Teléfono</td><td><code>phone</code> del contacto</td></tr>
+  <tr><td><code>{{3}}</code></td><td>+ WA ID</td><td><code>waId</code> del contacto</td></tr>
+</table>
+
+<h3>Gestionar plantillas existentes</h3>
+<ul>
+  <li><strong>Copiar</strong>: carga los datos de la plantilla en el formulario para que pueda editarlos y volver a enviar a Meta.</li>
+  <li><strong>Eliminar</strong>: borra la plantilla de la base de datos local (no la elimina de Meta).</li>
+  <li><strong>Sincronizar con Meta</strong>: descarga el estado actual de todas las plantillas desde Meta y actualiza la tabla.</li>
+</ul>
+</section>
+
+<!-- ═══════════ CAMPAÑAS ═══════════ -->
+<section id="campanas">
+<h2>📢 Campañas</h2>
+<p>Envíe plantillas de mensaje a múltiples contactos simultáneamente. Las campañas se procesan una por una a través de un worker en segundo plano.</p>
+
+<h3>Crear campaña</h3>
+<div class="step"><span class="step-num">1</span><p>Asigne un <strong>nombre</strong> descriptivo a la campaña.</p></div>
+<div class="step"><span class="step-num">2</span><p>Seleccione una <strong>plantilla aprobada</strong> del desplegable. El idioma se autocompleta.</p></div>
+<div class="step"><span class="step-num">3</span><p>Opcional: marque <strong>"Incluir todos los contactos activos"</strong> para enviar a toda la base de datos (máx. 1000).</p></div>
+<div class="step"><span class="step-num">4</span><p>Escriba <strong>BORRADOR</strong> en el campo de confirmación y haga clic en <strong>Crear borrador</strong>.</p></div>
+
+<h3>Agregar contactos mediante CSV</h3>
+<div class="step"><span class="step-num">1</span><p>En la fila del borrador, haga clic en <strong>+ Contactos</strong>.</p></div>
+<div class="step"><span class="step-num">2</span><p>Arrastre un archivo CSV o haga clic para seleccionarlo.</p></div>
+<div class="step"><span class="step-num">3</span><p>Revise la vista previa paginada de los contactos.</p></div>
+<div class="step"><span class="step-num">4</span><p>Haga clic en <strong>Importar N contactos</strong>. Los contactos se crean (si no existen) y se asocian al borrador.</p></div>
+
+<h3>Lanzar o programar</h3>
+<ul>
+  <li><strong>Lanzar ahora</strong>: encola todos los envíos inmediatamente. El worker comienza a procesarlos.</li>
+  <li><strong>Programar</strong>: seleccione fecha y hora futura. La campaña queda en estado <strong>En cola</strong> y se lanza automáticamente al llegar el momento (el worker verifica cada 30 segundos).</li>
+</ul>
+
+<h3>Monitoreo</h3>
+<p>Durante el envío verá una barra de progreso con el conteo <em>"3/150 enviados"</em>. Al finalizar todos los destinatarios, la campaña pasa a <strong>Finalizada</strong>. Los envíos fallidos se registran con el motivo del error.</p>
+
+<div class="info"><strong>Variables:</strong> Las variables <code>{{1}}</code>, <code>{{2}}</code>, <code>{{3}}</code> se reemplazan automáticamente con el nombre, teléfono y WA ID de cada destinatario.</div>
+</section>
+
+<!-- ═══════════ ARCHIVADOS ═══════════ -->
+<section id="archivados">
+<h2>📎 Archivados</h2>
+<p>Repositorio de archivos multimedia recibidos a través de WhatsApp. Permite marcar, filtrar, previsualizar y descargar adjuntos.</p>
+
+<h3>Filtros</h3>
+<ul>
+  <li><strong>Rango de fechas</strong>: Desde / Hasta con selectores de calendario.</li>
+  <li><strong>Estado de descarga</strong>: Pendiente, Descargando, Disponible, Con error.</li>
+  <li><strong>Filtro de archivado</strong>: Todos, Solo archivados, Sin archivar.</li>
+</ul>
+
+<h3>Archivar / Desarchivar</h3>
+<p>Cada archivo tiene un botón <strong>Archivar</strong>. Los archivos archivados se incluyen en las exportaciones y en los backups automáticos. Para desarchivar, debe escribir <code>DESMARCAR</code> como confirmación.</p>
+
+<h3>Vista previa</h3>
+<p>Haga clic en <strong>Ver</strong> para abrir un modal centrado con:</p>
+<ul>
+  <li>Nombre del archivo, tipo MIME y tamaño</li>
+  <li>Fecha y hora de recepción</li>
+  <li>Vista previa: imagen, video, audio o PDF</li>
+  <li>Botón de descarga</li>
+</ul>
+</section>
+
+<!-- ═══════════ EXPORTACIONES ═══════════ -->
+<section id="exportaciones">
+<h2>📦 Exportaciones</h2>
+<p>Sistema de generación de backups en archivos ZIP, con posibilidad de restauración completa y subida automática a Google Drive.</p>
+
+<h3>Solicitar exportación</h3>
+<div class="step"><span class="step-num">1</span><p>Seleccione el rango de fechas (Desde / Hasta).</p></div>
+<div class="step"><span class="step-num">2</span><p>Elija el tipo de exportación del desplegable.</p></div>
+<div class="step"><span class="step-num">3</span><p>Haga clic en <strong>Solicitar exportación</strong>.</p></div>
+
+<h3>Tipos de exportación</h3>
+<table>
+  <tr><th>Tipo</th><th>Contenido del ZIP</th><th>Formato de archivos</th></tr>
+  <tr><td><strong>Archivados</strong></td><td>Solo archivos marcados como archivados</td><td><code>Nombre-10-04-2026-1830.pdf</code></td></tr>
+  <tr><td><strong>Conversaciones</strong></td><td>Historial completo + archivos multimedia</td><td><code>.txt</code> + carpeta <code>_media/</code></td></tr>
+  <tr><td><strong>Contactos</strong></td><td>Todos los campos de la base de datos</td><td><code>contactos.csv</code></td></tr>
+  <tr><td><strong>Chat interno</strong></td><td>Mensajes del chat colaborativo</td><td><code>chat-interno.csv</code></td></tr>
+</table>
+
+<h3>Restaurar conversaciones</h3>
+<div class="step"><span class="step-num">1</span><p>En la sección <strong>Restaurar conversaciones</strong>, seleccione un archivo ZIP exportado previamente con el tipo "Conversaciones".</p></div>
+<div class="step"><span class="step-num">2</span><p>Haga clic en <strong>Restaurar</strong>.</p></div>
+<div class="step"><span class="step-num">3</span><p>El sistema recrea: contactos (si no existen), conversaciones, mensajes (evitando duplicados) y archivos multimedia en el disco.</p></div>
+
+<div class="warn"><strong>Precaución:</strong> La restauración no sobrescribe conversaciones existentes. Los mensajes con mismo contenido y fecha se omiten para evitar duplicados.</div>
+
+<h3>Google Drive (configuración avanzada)</h3>
+<p>Si configura Google Drive en <strong>Configuración → Google Drive</strong>, el sistema sube automáticamente los 4 tipos de exportación cada 24 horas, organizados en carpetas por mes (<code>2026-05/</code>). También puede usar el botón <strong>Respaldar y subir ahora</strong> para una subida manual inmediata.</p>
+</section>
+
+<!-- ═══════════ AUDITORÍA ═══════════ -->
+<section id="auditoria">
+<h2>🔍 Auditoría</h2>
+<p>Registro inmutable de todas las acciones realizadas en el sistema. Solo visible para administradores.</p>
+
+<h3>Filtros disponibles</h3>
+<table>
+  <tr><th>Filtro</th><th>Descripción</th></tr>
+  <tr><td>Desde / Hasta</td><td>Rango de fechas de los eventos</td></tr>
+  <tr><td>Acción</td><td>Tipo de evento (login, envío, eliminación, etc.)</td></tr>
+  <tr><td>Usuario</td><td>Email del usuario que realizó la acción</td></tr>
+  <tr><td>Entidad</td><td>Tipo de objeto afectado (contact, campaign, media_asset...)</td></tr>
+  <tr><td>ID</td><td>Identificador exacto del objeto</td></tr>
+</table>
+
+<h3>Exportar CSV</h3>
+<p>El botón <strong>Exportar CSV</strong> descarga los resultados filtrados en formato CSV con columnas: fecha, acción, usuario, entidad, IP y metadatos.</p>
+
+<h3>Retención automática</h3>
+<p>Los registros de auditoría se eliminan automáticamente según el período configurado en <strong>Configuración → Retención de datos</strong> (por defecto, 90 días).</p>
+</section>
+
+<!-- ═══════════ CONFIGURACIÓN ═══════════ -->
+<section id="configuracion">
+<h2>⚙️ Configuración</h2>
+<p>Panel central de administración. Las secciones visibles dependen del rol del usuario.</p>
+
+<h3>👤 Perfil</h3>
+<p>Todos los usuarios pueden:</p>
+<ul>
+  <li>Editar su <strong>nombre</strong> y <strong>teléfono</strong>.</li>
+  <li>Cambiar su <strong>contraseña</strong> (requiere la contraseña actual).</li>
+  <li>Activar o desactivar el <strong>silencio de notificaciones</strong>.</li>
+</ul>
+<p>El email no es editable por seguridad.</p>
+
+<h3>👥 Usuarios <span class="badge badge-red">Admin</span></h3>
+<p>Gestión completa de cuentas de acceso al sistema. Cada usuario tiene:</p>
+<ul>
+  <li><strong>Nombre y email</strong>: identificación única.</li>
+  <li><strong>Rol</strong>: <span class="badge badge-red">Admin</span> (acceso total) o <span class="badge badge-green">Operador</span> (acceso limitado por permisos).</li>
+  <li><strong>Permisos por módulo</strong>: active o desactive cada sección del menú para el operador.</li>
+  <li><strong>Contraseña</strong>: el admin puede restablecerla sin conocer la actual.</li>
+  <li><strong>Desactivar / Activar / Eliminar</strong>: control de estado de la cuenta.</li>
+</ul>
+
+<h3>🏢 Departamentos <span class="badge badge-red">Admin</span></h3>
+<p>Las áreas de atención que aparecen en el menú automático. Al crear un departamento, se le asigna el siguiente número disponible. Al eliminar, los números se reindexan automáticamente para mantener la secuencia 1, 2, 3...</p>
+
+<h3>🔗 Departamentos de usuarios <span class="badge badge-red">Admin</span></h3>
+<p>Asigne cada operador a uno o varios departamentos. Un operador solo verá las conversaciones en cola de los departamentos a los que pertenece.</p>
+
+<h3>📝 Mensaje de menú <span class="badge badge-red">Admin</span></h3>
+<p>Editor de texto para personalizar el mensaje automático de routing. Use números que correspondan al orden de los departamentos.</p>
+
+<h3>🏷️ Etiquetas <span class="badge badge-red">Admin</span></h3>
+<p>Catálogo controlado de etiquetas para segmentar contactos. Cada etiqueta puede activarse/desactivarse sin perder las asignaciones existentes.</p>
+
+<h3>🔔 Notificaciones <span class="badge badge-red">Admin</span></h3>
+<p>Suba archivos MP3/WAV para personalizar los tonos de:</p>
+<ul>
+  <li><strong>Mensaje entrante</strong>: cuando recibe un WhatsApp.</li>
+  <li><strong>Chat transferido</strong>: cuando le asignan una conversación.</li>
+</ul>
+
+<h3>🎨 Personalización <span class="badge badge-red">Admin</span></h3>
+<ul>
+  <li><strong>Color del sidebar</strong>: fondo del menú lateral.</li>
+  <li><strong>Color de acento</strong>: todos los botones principales del sistema.</li>
+  <li><strong>Logo</strong>: 200×50px recomendado. Aparece en el menú y en el login.</li>
+  <li><strong>Fondo del login</strong>: 1920×1080px recomendado.</li>
+  <li><strong>Favicon</strong>: ícono de pestaña, 32×32px.</li>
+</ul>
+
+<h3>📧 Correo SMTP <span class="badge badge-red">Admin</span></h3>
+<p>Configure el servidor de correo para habilitar verificación semanal, recuperación de contraseña y notificaciones. Sin SMTP, estas funciones se desactivan automáticamente.</p>
+
+<h3>☁️ Google Drive <span class="badge badge-red">Admin</span></h3>
+<p>Configure una Service Account de Google Cloud para backups automáticos diarios. Requiere: Client Email, Private Key y Folder ID.</p>
+
+<h3>🗑️ Retención de datos <span class="badge badge-red">Admin</span></h3>
+<p>Configure cuántos días se conserva cada tipo de dato. El sistema ejecuta limpieza automática cada 24 horas.</p>
+</section>
+
+<!-- ═══════════ FAQ ═══════════ -->
+<section id="faq">
+<h2>❓ Preguntas frecuentes</h2>
+
+<div class="card">
+  <h3>¿Por qué algunos mensajes no se envían a WhatsApp?</h3>
+  <p>Causas posibles: (1) el token de acceso de WhatsApp expiró (regénerelo en Meta Developers), (2) el cliente no ha enviado un mensaje en las últimas 24 horas y la ventana de conversación está cerrada, (3) el número de teléfono del cliente no es válido o no tiene WhatsApp. Verifique el estado del envío en el chat: los mensajes fallidos muestran un botón <strong>Reenviar</strong>.</p>
+</div>
+
+<div class="card">
+  <h3>¿Por qué Meta rechazó mi plantilla de mensaje?</h3>
+  <p>Meta revisa cada plantilla para prevenir spam. Causas comunes de rechazo: (1) lenguaje promocional o de marketing en plantillas de categoría Utilidad, (2) variables <code>{{1}}</code> sin valores de ejemplo, (3) formato incorrecto de botones o enlaces, (4) contenido que infringe las políticas de comercio de WhatsApp. Revise el motivo específico en el panel de Meta Developers, corrija y vuelva a crear la plantilla.</p>
+</div>
+
+<div class="card">
+  <h3>¿Cómo agrego un nuevo departamento al menú automático?</h3>
+  <p>Vaya a <strong>Configuración → Departamentos</strong>, cree el departamento con nombre y código (se le asigna el siguiente número disponible automáticamente). Luego vaya a <strong>Configuración → Mensaje de menú</strong> y agregue la nueva línea con el número correspondiente. Los números se mantienen sincronizados incluso si elimina departamentos.</p>
+</div>
+
+<div class="card">
+  <h3>¿Cuánto espacio ocupan los archivos multimedia y cómo lo controlo?</h3>
+  <p>Cada imagen, audio, video y documento recibido por WhatsApp se almacena en el servidor. Para controlar el crecimiento: (1) archive solo los archivos importantes (el resto se elimina automáticamente según la retención configurada), (2) configure la retención en <strong>Configuración → Retención de datos</strong> (por defecto, archivos no archivados se eliminan a los 60 días), (3) active la limpieza de archivos huérfanos para eliminar archivos sin registro en la base de datos.</p>
+</div>
+
+<div class="card">
+  <h3>¿Cómo recupero conversaciones o archivos eliminados?</h3>
+  <p>Si programó exportaciones periódicas o realizó un backup manual desde <strong>Exportaciones</strong>, puede restaurar conversaciones completas desde un archivo ZIP en <strong>Exportaciones → Restaurar conversaciones</strong>. La restauración recrea contactos, mensajes y archivos multimedia. Si no realizó un backup previo, los datos eliminados no pueden recuperarse. Recomendamos configurar Google Drive en <strong>Configuración → Google Drive</strong> para backups diarios automáticos.</p>
+</div>
+
+<div class="card">
+  <h3>¿Cómo funciona el worker y qué hace en segundo plano?</h3>
+  <p>El worker es un proceso que se ejecuta continuamente en el servidor. Sus funciones: (1) envía los mensajes de campañas uno por uno respetando los límites de Meta, (2) descarga archivos multimedia de WhatsApp a medida que llegan, (3) genera los archivos ZIP de exportación cuando se solicitan, (4) ejecuta la limpieza automática de datos según las políticas de retención, (5) lanza campañas programadas en la fecha y hora configuradas, (6) sube backups diarios a Google Drive si está configurado. Si el worker se detiene, las campañas quedan en estado "En envío" y los archivos multimedia no se descargan hasta que se reinicie.</p>
+</div>
+
+<div class="card">
+  <h3>¿Qué debo hacer si la aplicación deja de responder?</h3>
+  <p>Verifique en orden: (1) acceda a <code>/api/health</code> para comprobar que la base de datos y Redis están funcionando, (2) revise los logs del contenedor web con <code>docker compose logs web</code>, (3) verifique que el worker esté corriendo con <code>docker compose logs worker</code>, (4) compruebe que el token de WhatsApp no haya expirado, (5) si usa nginx, verifique que el servicio esté arriba. Para reiniciar todo de forma segura: <code>docker compose restart</code>.</p>
+</div>
+</section>
+
+<footer>
+  <p>Limpiador WhatsApp Cloud v1.0 · Documentación oficial · Mayo 2026</p>
+  <p style="margin-top: 4px;">Para soporte técnico, contacte al administrador del sistema.</p>
+</footer>
+
+</main>
+</body>
+</html>

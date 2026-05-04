@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual Técnico — Limpiador WhatsApp Cloud v1.0</title>
+<style>
+  :root { --accent: #075e54; --bg: #f8fafc; --card: #fff; --text: #1e293b; --muted: #64748b; --border: #e2e8f0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; display: flex; }
+  aside { width: 270px; min-height: 100vh; background: #0f172a; color: #e2e8f0; padding: 24px 16px; position: sticky; top: 0; overflow-y: auto; flex-shrink: 0; }
+  aside h2 { font-size: 1.1rem; color: #fff; margin-bottom: 4px; }
+  aside small { color: #5eead4; display: block; margin-bottom: 20px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; }
+  aside a { display: block; color: #94a3b8; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; margin-bottom: 2px; transition: all 0.15s; }
+  aside a:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  main { flex: 1; max-width: 900px; padding: 32px 40px; min-width: 0; }
+  header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--border); }
+  header h1 { font-size: 2.2rem; font-weight: 800; color: var(--accent); }
+  header p { color: var(--muted); margin-top: 6px; }
+  section { margin-bottom: 36px; }
+  h2 { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }
+  h3 { font-size: 1.05rem; font-weight: 600; color: #334155; margin: 20px 0 8px; }
+  p { margin-bottom: 8px; color: #475569; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 12px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  ul, ol { padding-left: 22px; margin: 6px 0 12px; color: #475569; }
+  li { margin-bottom: 4px; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #be123c; font-family: 'SF Mono', 'Fira Code', monospace; }
+  pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; line-height: 1.5; margin: 12px 0; }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 14px 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  th { background: #f8fafc; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  th, td { padding: 10px 14px; text-align: left; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .step { display: flex; gap: 12px; align-items: flex-start; margin: 10px 0; padding: 10px 14px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0; }
+  .step-num { background: var(--accent); color: #fff; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; flex-shrink: 0; }
+  .step p { margin: 0; }
+  .tip { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 14px 0; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+  .warn { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 14px 0; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+  .info { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #10b981; padding: 12px 16px; margin: 14px 0; border-radius: 0 8px 8px 0; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .arch { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 16px 0; text-align: center; }
+  .arch-row { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin: 8px 0; }
+  .arch-box { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 18px; min-width: 120px; }
+  .arch-box strong { display: block; font-size: 0.9rem; }
+  .arch-box small { color: var(--muted); font-size: 0.75rem; }
+  .arch-arrow { display: flex; align-items: center; color: var(--muted); font-size: 1.2rem; }
+  footer { text-align: center; padding: 32px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 40px; }
+  @media (max-width: 860px) { body { flex-direction: column; } aside { width: 100%; min-height: auto; position: static; } main { padding: 20px; } }
+</style>
+</head>
+<body>
+
+<aside>
+  <h2>Limpiador</h2>
+  <small>Manual Técnico v1.0</small>
+  <a href="#requerimientos">📋 Requerimientos</a>
+  <a href="#instalacion">🚀 Instalación</a>
+  <a href="#arquitectura">🏗️ Arquitectura</a>
+  <a href="#configuracion">⚙️ Configuración</a>
+  <a href="#servicios">🔧 Servicios</a>
+  <a href="#variables">📝 Variables de entorno</a>
+  <a href="#despliegue">📦 Despliegue</a>
+  <a href="#mantenimiento">🛠️ Mantenimiento</a>
+  <a href="#backup">💾 Backup y restauración</a>
+  <a href="#solucion">🔍 Solución de problemas</a>
+  <a href="#seguridad">🔒 Seguridad</a>
+  <a href="#escalado">📈 Escalado</a>
+</aside>
+
+<main>
+
+<header>
+  <h1>Manual Técnico</h1>
+  <p>Arquitectura, instalación, configuración y mantenimiento de Limpiador WhatsApp Cloud</p>
+</header>
+
+<!-- ═══════════ REQUERIMIENTOS ═══════════ -->
+<section id="requerimientos">
+<h2>📋 Requerimientos del sistema</h2>
+
+<h3>Servidor mínimo (hasta 30 usuarios, 300 chats/día)</h3>
+<table>
+  <tr><th>Recurso</th><th>Mínimo</th><th>Recomendado</th></tr>
+  <tr><td>CPU</td><td>2 vCPUs</td><td>4 vCPUs</td></tr>
+  <tr><td>RAM</td><td>4 GB</td><td>8 GB</td></tr>
+  <tr><td>Disco</td><td>20 GB SSD</td><td>50+ GB SSD (según volumen de archivos)</td></tr>
+  <tr><td>Sistema operativo</td><td>Ubuntu 22.04+ / Debian 12+</td><td>Ubuntu 24.04 LTS</td></tr>
+  <tr><td>Docker</td><td>24.0+</td><td>Última versión estable</td></tr>
+  <tr><td>Docker Compose</td><td>v2+</td><td>Incluido con Docker</td></tr>
+  <tr><td>Red</td><td>Puertos 80/443 abiertos</td><td>IP pública estática + dominio</td></tr>
+</table>
+
+<h3>Servidor para producción (100+ usuarios, 1000+ chats/día)</h3>
+<table>
+  <tr><th>Recurso</th><th>Valor</th></tr>
+  <tr><td>CPU</td><td>8 vCPUs</td></tr>
+  <tr><td>RAM</td><td>16 GB</td></tr>
+  <tr><td>Disco</td><td>100+ GB SSD con backups</td></tr>
+  <tr><td>Instancias web</td><td>2-3 réplicas</td></tr>
+</table>
+
+<h3>Dependencias externas</h3>
+<table>
+  <tr><th>Servicio</th><th>Propósito</th><th>¿Obligatorio?</th></tr>
+  <tr><td>Meta WhatsApp Business API</td><td>Envío y recepción de mensajes</td><td><span class="badge badge-red">Sí</span></td></tr>
+  <tr><td>Servidor SMTP</td><td>Verificación, recuperación, notificaciones</td><td><span class="badge badge-blue">No</span> (sin él se desactivan funciones de email)</td></tr>
+  <tr><td>Google Drive API</td><td>Backups diarios automáticos</td><td><span class="badge badge-blue">No</span></td></tr>
+  <tr><td>Dominio + SSL</td><td>Webhook de WhatsApp (requiere HTTPS)</td><td><span class="badge badge-red">Sí</span></td></tr>
+</table>
+
+<h3>Stack tecnológico</h3>
+<table>
+  <tr><th>Capa</th><th>Tecnología</th><th>Versión</th></tr>
+  <tr><td>Frontend / Backend</td><td>Next.js (App Router)</td><td>15.5+</td></tr>
+  <tr><td>Lenguaje</td><td>TypeScript</td><td>5.6+</td></tr>
+  <tr><td>Base de datos</td><td>PostgreSQL</td><td>16</td></tr>
+  <tr><td>Cache / Colas</td><td>Redis + BullMQ</td><td>7</td></tr>
+  <tr><td>ORM</td><td>Prisma</td><td>5.22</td></tr>
+  <tr><td>Reverse proxy</td><td>Nginx</td><td>Alpine</td></tr>
+  <tr><td>Runtime</td><td>Node.js</td><td>20 LTS</td></tr>
+  <tr><td>Contenedores</td><td>Docker + Docker Compose</td><td>24+</td></tr>
+</table>
+</section>
+
+<!-- ═══════════ INSTALACIÓN ═══════════ -->
+<section id="instalacion">
+<h2>🚀 Instalación</h2>
+
+<h3>Opción 1: Script automático (Linux)</h3>
+<div class="step"><span class="step-num">1</span><p>Clone el repositorio: <code>git clone &lt;url&gt; limpiador && cd limpiador</code></p></div>
+<div class="step"><span class="step-num">2</span><p>Ejecute el instalador: <code>chmod +x install.sh && ./install.sh</code></p></div>
+<div class="step"><span class="step-num">3</span><p>El script instala Docker (si no está), solicita credenciales y genera el archivo <code>.env</code>.</p></div>
+<div class="step"><span class="step-num">4</span><p>Construye las imágenes Docker y levanta los servicios.</p></div>
+<div class="step"><span class="step-num">5</span><p>Crea el usuario administrador automáticamente.</p></div>
+
+<div class="info"><strong>Tiempo estimado:</strong> 5-10 minutos (dependiendo de la velocidad de descarga de imágenes).</div>
+
+<h3>Opción 2: Instalación manual</h3>
+<div class="step"><span class="step-num">1</span><p>Asegúrese de tener Docker y Docker Compose instalados.</p></div>
+<div class="step"><span class="step-num">2</span><p>Copie <code>.env.production.example</code> a <code>.env</code> y complete todas las variables.</p></div>
+<div class="step"><span class="step-num">3</span><p>Construya y levante: <code>docker compose up -d --build</code></p></div>
+<div class="step"><span class="step-num">4</span><p>Espere a que la app esté lista: <code>curl http://localhost:3000/api/health</code> debe devolver <code>{"status":"ok"}</code>.</p></div>
+<div class="step"><span class="step-num">5</span><p>Cree el admin: <code>curl -X POST http://localhost:3000/api/dev/bootstrap-admin -H "Content-Type: application/json" -d '{"email":"admin@dominio.com","password":"Contraseña123!"}'</code></p></div>
+
+<div class="warn"><strong>Importante:</strong> El endpoint <code>/api/dev/bootstrap-admin</code> solo funciona cuando no hay usuarios en la base de datos. Después del primer admin, se desactiva automáticamente.</div>
+
+<h3>Instalación en Windows</h3>
+<div class="step"><span class="step-num">1</span><p>Instale Docker Desktop desde <a href="https://www.docker.com/products/docker-desktop/">docker.com</a>.</p></div>
+<div class="step"><span class="step-num">2</span><p>Clone el repositorio o descargue el código fuente.</p></div>
+<div class="step"><span class="step-num">3</span><p>Ejecute PowerShell como administrador y ejecute: <code>.\install.ps1</code></p></div>
+<div class="step"><span class="step-num">4</span><p>Siga las instrucciones interactivas.</p></div>
+</section>
+
+<!-- ═══════════ ARQUITECTURA ═══════════ -->
+<section id="arquitectura">
+<h2>🏗️ Arquitectura del sistema</h2>
+
+<div class="arch">
+  <div class="arch-row">
+    <div class="arch-box"><strong>🌐 Nginx</strong><small>Reverse Proxy<br>Puerto 80/443</small></div>
+  </div>
+  <div class="arch-arrow" style="justify-content:center">▼ Balanceo de carga (round-robin)</div>
+  <div class="arch-row">
+    <div class="arch-box"><strong>⚛️ Web (Next.js)</strong><small>Instancia 1<br>Puerto 3000</small></div>
+    <div class="arch-box"><strong>⚛️ Web (Next.js)</strong><small>Instancia 2<br>Puerto 3000</small></div>
+    <div class="arch-box"><strong>⚛️ Web (Next.js)</strong><small>Instancia N<br>Puerto 3000</small></div>
+  </div>
+  <div class="arch-arrow" style="justify-content:center">▼</div>
+  <div class="arch-row">
+    <div class="arch-box"><strong>🔧 Worker (BullMQ)</strong><small>Colas y tareas<br>Campañas, export, retención</small></div>
+  </div>
+  <div class="arch-arrow" style="justify-content:center">▼</div>
+  <div class="arch-row">
+    <div class="arch-box"><strong>🗄️ PostgreSQL 16</strong><small>Base de datos<br>Persistencia</small></div>
+    <div class="arch-box"><strong>📦 Redis 7</strong><small>Cache + Colas<br>BullMQ + Rate limit</small></div>
+    <div class="arch-box"><strong>📁 Volúmenes</strong><small>media/<br>exports/</small></div>
+  </div>
+</div>
+
+<h3>Flujo de una conversación de WhatsApp</h3>
+<pre><code>1. Cliente envía mensaje → Meta API → Webhook (POST /api/webhooks/whatsapp)
+2. Next.js recibe → verifica firma HMAC → guarda en PostgreSQL
+3. Si es texto nuevo → ejecuta routeInboundTextMessage()
+4. Si es UNASSIGNED → envía menú automático (sendRoutingMenu)
+5. Menú → cliente responde número → asigna a departamento (DEPARTMENT_QUEUE)
+6. Operador ve conversación → reclama (CLAIMED) → responde vía WhatsApp API
+7. Adjuntos → encola descarga → Worker descarga → guarda en media/
+</code></pre>
+
+<h3>Flujo de una campaña</h3>
+<pre><code>1. Admin crea borrador → agrega contactos (CSV o todos)
+2. Admin lanza o programa → estado SENDING o QUEUED
+3. Worker: enqueueCampaignSend() por cada destinatario → BullMQ
+4. Worker procesa trabajo → sendTemplate() con variables resueltas
+5. Éxito → SENT | Error → FAILED (3 reintentos)
+6. Último destinatario → estado COMPLETED
+</code></pre>
+
+<h3>Estructura del proyecto</h3>
+<pre><code>limpiador/
+├── src/
+│   ├── app/                    # Next.js App Router (páginas + API routes)
+│   │   ├── (app)/              # Rutas protegidas (dashboard, inbox, etc.)
+│   │   ├── api/                # Endpoints REST
+│   │   └── login/              # Login público
+│   ├── components/             # Componentes compartidos (AppShell)
+│   ├── lib/                    # Utilidades (config, prisma, rate-limit)
+│   ├── modules/                # Lógica de negocio por dominio
+│   │   ├── auth/               # Sesiones JWT, guards
+│   │   ├── inbox/              # Conversaciones, routing, composer
+│   │   ├── whatsapp/           # Cliente API WhatsApp Cloud
+│   │   ├── campaigns/          # Campañas
+│   │   ├── contacts/           # Contactos CRUD
+│   │   ├── templates/          # Plantillas WhatsApp
+│   │   ├── email/              # Envío de correos (nodemailer)
+│   │   ├── drive/              # Google Drive API
+│   │   ├── queue/              # BullMQ queues
+│   │   ├── audit/              # Registro de auditoría
+│   │   ├── exports/            # Exportaciones y restauración
+│   │   ├── dashboard/          # Gráficas y métricas
+│   │   ├── notifications/      # Toast y sonidos
+│   │   └── settings/           # Configuraciones del sistema
+│   ├── middleware.ts           # Auth middleware
+│   └── worker/                 # Procesos en segundo plano
+│       ├── index.ts            # Entry point del worker
+│       ├── export-generator.ts # Generación de ZIPs
+│       ├── retention.ts        # Limpieza de datos
+│       └── daily-exports.ts    # Backup diario a Drive
+├── prisma/
+│   ├── schema.prisma           # Modelo de datos
+│   └── migrations/             # Migraciones (1 baseline)
+├── docker/
+│   └── nginx/                  # Configuración de Nginx
+├── docker-compose.yml          # Composición de servicios (producción)
+├── docker-compose.dev.yml      # Override para desarrollo
+├── Dockerfile                  # Imagen multi-stage
+├── install.sh                  # Instalador Linux
+├── install.ps1                 # Instalador Windows
+└── .env.production.example     # Plantilla de variables
+</code></pre>
+</section>
+
+<!-- ═══════════ CONFIGURACIÓN ═══════════ -->
+<section id="configuracion">
+<h2>⚙️ Configuración del sistema</h2>
+
+<h3>Archivos de configuración runtime</h3>
+<p>Estos archivos se generan desde la interfaz web (Configuración) y <strong>no deben editarse manualmente</strong>:</p>
+<table>
+  <tr><th>Archivo</th><th>Origen</th><th>Contenido</th></tr>
+  <tr><td><code>branding.json</code></td><td>Configuración → Personalización</td><td>Colores, logo, fondo</td></tr>
+  <tr><td><code>smtp.json</code></td><td>Configuración → SMTP</td><td>Credenciales de correo</td></tr>
+  <tr><td><code>drive.json</code></td><td>Configuración → Google Drive</td><td>Service Account</td></tr>
+  <tr><td><code>retention.json</code></td><td>Configuración → Retención</td><td>Períodos de limpieza</td></tr>
+  <tr><td><code>routing-menu.txt</code></td><td>Configuración → Mensaje de menú</td><td>Texto del menú automático</td></tr>
+</table>
+
+<h3>Certificado SSL (recomendado)</h3>
+<p>WhatsApp Webhook requiere HTTPS. Use Certbot con Nginx:</p>
+<pre><code># Instalar Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Obtener certificado
+sudo certbot --nginx -d tudominio.com
+
+# Renovación automática (ya configurada por Certbot)
+sudo certbot renew --dry-run
+</code></pre>
+
+<p>Luego actualice <code>APP_URL</code> en <code>.env</code> a <code>https://tudominio.com</code> y configure el webhook en Meta con esa URL.</p>
+</section>
+
+<!-- ═══════════ SERVICIOS ═══════════ -->
+<section id="servicios">
+<h2>🔧 Servicios Docker</h2>
+
+<table>
+  <tr><th>Servicio</th><th>Imagen</th><th>Puerto</th><th>Función</th></tr>
+  <tr><td><code>web</code></td><td>node:20-bookworm-slim (build local)</td><td>3000 (interno)</td><td>Aplicación Next.js</td></tr>
+  <tr><td><code>worker</code></td><td>node:20-bookworm-slim (build local)</td><td>—</td><td>Procesos en segundo plano</td></tr>
+  <tr><td><code>nginx</code></td><td>nginx:alpine</td><td>80, 443</td><td>Reverse proxy + SSL</td></tr>
+  <tr><td><code>postgres</code></td><td>postgres:16-alpine</td><td>5432 (interno)</td><td>Base de datos</td></tr>
+  <tr><td><code>redis</code></td><td>redis:7-alpine</td><td>6379 (interno)</td><td>Cache y colas</td></tr>
+</table>
+
+<h3>Comandos útiles</h3>
+<pre><code># Ver estado de todos los servicios
+docker compose ps
+
+# Ver logs en tiempo real
+docker compose logs -f web
+docker compose logs -f worker
+
+# Reiniciar un servicio específico
+docker compose restart worker
+
+# Escalar instancias web (producción)
+docker compose up -d --scale web=3
+
+# Detener todo
+docker compose down
+
+# Detener todo SIN borrar datos
+docker compose down
+
+# Detener todo Y borrar base de datos (¡cuidado!)
+docker compose down -v
+</code></pre>
+
+<h3>Health checks</h3>
+<p>Todos los servicios tienen health checks configurados:</p>
+<ul>
+  <li><strong>Web</strong>: <code>GET /api/health</code> cada 15s (verifica DB + Redis)</li>
+  <li><strong>PostgreSQL</strong>: <code>pg_isready</code> cada 10s</li>
+  <li><strong>Redis</strong>: <code>redis-cli ping</code> cada 10s</li>
+  <li><strong>Nginx</strong>: <code>wget /api/health</code> cada 15s</li>
+</ul>
+</section>
+
+<!-- ═══════════ VARIABLES DE ENTORNO ═══════════ -->
+<section id="variables">
+<h2>📝 Variables de entorno (.env)</h2>
+
+<table>
+  <tr><th>Variable</th><th>Descripción</th><th>Ejemplo</th></tr>
+  <tr><td><code>NODE_ENV</code></td><td>Entorno (<code>production</code>)</td><td><code>production</code></td></tr>
+  <tr><td><code>APP_URL</code></td><td>URL pública de la aplicación</td><td><code>https://miapp.com</code></td></tr>
+  <tr><td><code>DATABASE_URL</code></td><td>Conexión PostgreSQL</td><td><code>postgresql://user:pass@postgres:5432/db</code></td></tr>
+  <tr><td><code>REDIS_URL</code></td><td>Conexión Redis</td><td><code>redis://redis:6379</code></td></tr>
+  <tr><td><code>SESSION_SECRET</code></td><td>Clave para firmar JWT (mín 32 chars)</td><td>Generar con <code>openssl rand -base64 32</code></td></tr>
+  <tr><td><code>LOGIN_RATE_LIMIT_MAX</code></td><td>Intentos de login por ventana</td><td><code>10</code></td></tr>
+  <tr><td><code>WHATSAPP_PHONE_NUMBER_ID</code></td><td>ID del número en Meta</td><td><code>123456789</code></td></tr>
+  <tr><td><code>WHATSAPP_ACCESS_TOKEN</code></td><td>Token de acceso permanente</td><td><code>EAA...</code></td></tr>
+  <tr><td><code>WHATSAPP_APP_SECRET</code></td><td>Secreto para verificar webhooks</td><td><code>abc123...</code></td></tr>
+  <tr><td><code>WHATSAPP_WEBHOOK_VERIFY_TOKEN</code></td><td>Token de verificación del webhook</td><td><code>mi-token-secreto</code></td></tr>
+  <tr><td><code>MEDIA_MAX_BYTES</code></td><td>Tamaño máximo de archivo</td><td><code>26214400</code> (25MB)</td></tr>
+  <tr><td><code>DB_PASSWORD</code></td><td>Contraseña de PostgreSQL</td><td><code>contraseña-segura</code></td></tr>
+</table>
+
+<div class="warn"><strong>Seguridad:</strong> Nunca comparta el archivo <code>.env</code>. Está en <code>.gitignore</code>. Use <code>.env.production.example</code> como plantilla.</div>
+</section>
+
+<!-- ═══════════ DESPLIEGUE ═══════════ -->
+<section id="despliegue">
+<h2>📦 Despliegue a producción</h2>
+
+<h3>Checklist pre-lanzamiento</h3>
+<ol>
+  <li>✅ <code>.env</code> configurado con valores de producción</li>
+  <li>✅ Token de WhatsApp permanente (no temporal)</li>
+  <li>✅ Dominio configurado con SSL (HTTPS)</li>
+  <li>✅ Webhook de WhatsApp verificado en Meta</li>
+  <li>✅ Plantillas aprobadas en Meta</li>
+  <li>✅ SMTP configurado (opcional pero recomendado)</li>
+  <li>✅ Backup de base de datos programado</li>
+  <li>✅ Logs rotativos configurados (ya incluido en compose)</li>
+</ol>
+
+<h3>Primer despliegue</h3>
+<pre><code># 1. Construir imágenes
+docker compose build
+
+# 2. Levantar servicios (escala según necesidad)
+docker compose up -d --scale web=2
+
+# 3. Verificar salud
+curl http://localhost:80/api/health
+
+# 4. Ver logs
+docker compose logs -f
+</code></pre>
+
+<h3>Actualización (nueva versión)</h3>
+<pre><code># 1. Detener servicios
+docker compose down
+
+# 2. Pull de cambios
+git pull
+
+# 3. Reconstruir y levantar
+docker compose up -d --build --scale web=2
+
+# 4. Aplicar migraciones (si las hay)
+docker compose exec web npx prisma migrate deploy
+</code></pre>
+
+<h3>Rollback</h3>
+<pre><code># Volver a un commit anterior
+git checkout &lt;commit-hash&gt;
+docker compose up -d --build --scale web=2
+
+# O restaurar backup de BD
+docker compose exec -T postgres pg_restore -U limpiador -d limpiador &lt; backup.sql
+</code></pre>
+</section>
+
+<!-- ═══════════ MANTENIMIENTO ═══════════ -->
+<section id="mantenimiento">
+<h2>🛠️ Mantenimiento</h2>
+
+<h3>Tareas diarias (automatizadas por el worker)</h3>
+<ul>
+  <li>✅ Limpieza de retención de datos</li>
+  <li>✅ Backup a Google Drive (si está configurado)</li>
+  <li>✅ Limpieza de archivos huérfanos</li>
+  <li>✅ Lanzamiento de campañas programadas</li>
+</ul>
+
+<h3>Tareas semanales</h3>
+<ul>
+  <li>Verificar logs: <code>docker compose logs --tail=100 web</code></li>
+  <li>Verificar espacio en disco: <code>df -h</code></li>
+  <li>Revisar campañas fallidas en la interfaz</li>
+  <li>Verificar estado del token de WhatsApp (no caducado)</li>
+</ul>
+
+<h3>Tareas mensuales</h3>
+<ul>
+  <li>Backup completo de PostgreSQL: <code>docker compose exec postgres pg_dump -U limpiador limpiador > backup_$(date +%Y%m%d).sql</code></li>
+  <li>Verificar certificados SSL: <code>sudo certbot renew --dry-run</code></li>
+  <li>Revisar logs de auditoría para actividad sospechosa</li>
+  <li>Actualizar dependencias (evaluar en staging primero)</li>
+</ul>
+
+<h3>Logs y monitoreo</h3>
+<pre><code># Logs de la aplicación web
+docker compose logs web --tail=50 -f
+
+# Logs del worker
+docker compose logs worker --tail=50 -f
+
+# Logs de errores específicos
+docker compose logs web 2>&1 | grep -i error
+
+# Estado de salud
+curl http://localhost/api/health
+</code></pre>
+</section>
+
+<!-- ═══════════ BACKUP ═══════════ -->
+<section id="backup">
+<h2>💾 Backup y restauración</h2>
+
+<h3>Backup de base de datos</h3>
+<pre><code># Backup completo
+docker compose exec postgres pg_dump -U limpiador limpiador > backup.sql
+
+# Backup comprimido
+docker compose exec postgres pg_dump -U limpiador limpiador | gzip > backup.sql.gz
+</code></pre>
+
+<h3>Restaurar base de datos</h3>
+<pre><code># Desde archivo SQL
+docker compose exec -T postgres psql -U limpiador limpiador < backup.sql
+
+# Desde archivo comprimido
+gunzip -c backup.sql.gz | docker compose exec -T postgres psql -U limpiador limpiador
+</code></pre>
+
+<h3>Backup de archivos multimedia</h3>
+<pre><code># Sincronizar a almacenamiento externo
+rsync -avz media/ usuario@backup-server:/backups/limpiador/media/
+
+# O usar Google Drive (configurar en la interfaz web)
+</code></pre>
+
+<h3>Backup completo del sistema</h3>
+<pre><code># Todo en uno: BD + archivos
+docker compose exec postgres pg_dump -U limpiador limpiador | gzip > backup_db.sql.gz
+tar -czf backup_media.tar.gz media/ exports/
+</code></pre>
+</section>
+
+<!-- ═══════════ SOLUCIÓN DE PROBLEMAS ═══════════ -->
+<section id="solucion">
+<h2>🔍 Solución de problemas</h2>
+
+<div class="card">
+  <h3>La aplicación no carga (error 502)</h3>
+  <p><strong>Causa:</strong> El servicio web no está listo o Nginx no puede conectarse.</p>
+  <p><strong>Solución:</strong></p>
+  <pre><code>docker compose ps                    # Verificar qué servicios están caídos
+docker compose logs web --tail=20     # Ver errores de la app
+docker compose restart web nginx      # Reiniciar </code></pre>
+</div>
+
+<div class="card">
+  <h3>Error "demasiados intentos" en login</h3>
+  <p><strong>Causa:</strong> Rate limiter bloqueando por múltiples intentos fallidos.</p>
+  <p><strong>Solución:</strong></p>
+  <pre><code>docker compose exec redis redis-cli FLUSHDB   # Limpiar Redis
+# O aumentar LOGIN_RATE_LIMIT_MAX en .env y reiniciar</code></pre>
+</div>
+
+<div class="card">
+  <h3>Mensajes de WhatsApp no se envían</h3>
+  <p><strong>Causa:</strong> Token expirado o inválido.</p>
+  <p><strong>Solución:</strong> Regenerar token en Meta Developers → actualizar <code>.env</code> → <code>docker compose restart web worker</code>.</p>
+</div>
+
+<div class="card">
+  <h3>Worker no procesa trabajos</h3>
+  <pre><code>docker compose logs worker --tail=20  # Ver si hay errores
+docker compose exec redis redis-cli KEYS "bull:*"  # Ver colas
+docker compose restart worker          # Reiniciar worker</code></pre>
+</div>
+
+<div class="card">
+  <h3>Error de espacio en disco</h3>
+  <pre><code>df -h                                  # Ver uso de disco
+du -sh media/ exports/                 # Ver tamaño de archivos
+# Ajustar retención en Configuración → Retención de datos</code></pre>
+</div>
+
+<div class="card">
+  <h3>Error "port already allocated"</h3>
+  <pre><code>docker compose down                   # Detener todo
+sudo lsof -i :3000                     # Ver qué ocupa el puerto
+sudo kill -9 &lt;PID&gt;                     # Liberar puerto
+docker compose up -d                   # Reiniciar</code></pre>
+</div>
+</section>
+
+<!-- ═══════════ SEGURIDAD ═══════════ -->
+<section id="seguridad">
+<h2>🔒 Seguridad</h2>
+
+<h3>Buenas prácticas implementadas</h3>
+<ul>
+  <li>✅ Contraseñas hasheadas con bcrypt (12 rounds)</li>
+  <li>✅ Sesiones JWT con firma HMAC-SHA256</li>
+  <li>✅ Rate limiting en login (por IP y email)</li>
+  <li>✅ Rate limiting en descargas de archivos</li>
+  <li>✅ CORS restringido a la URL configurada</li>
+  <li>✅ Sanitización de paths para prevenir directory traversal</li>
+  <li>✅ Content-Type validation en uploads</li>
+  <li>✅ Auditoría de todas las acciones sensibles</li>
+  <li>✅ Webhook de WhatsApp con verificación de firma HMAC</li>
+  <li>✅ Secrets en variables de entorno (nunca en código)</li>
+</ul>
+
+<h3>Recomendaciones adicionales</h3>
+<ul>
+  <li>🔸 Usar firewall (ufw) para limitar puertos expuestos</li>
+  <li>🔸 Configurar fail2ban para prevenir fuerza bruta</li>
+  <li>🔸 Usar HTTPS con certificado válido (Let's Encrypt)</li>
+  <li>🔸 Rotar SESSION_SECRET periódicamente</li>
+  <li>🔸 Mantener dependencias actualizadas (<code>npm audit</code>)</li>
+  <li>🔸 No exponer PostgreSQL ni Redis a Internet</li>
+</ul>
+</section>
+
+<!-- ═══════════ ESCALADO ═══════════ -->
+<section id="escalado">
+<h2>📈 Escalado</h2>
+
+<h3>Escalado horizontal (más instancias web)</h3>
+<pre><code># Escalar a 3 instancias
+docker compose up -d --scale web=3
+
+# Verificar balanceo
+curl http://localhost/api/health  # Nginx round-robin
+</code></pre>
+
+<h3>Escalado vertical (más recursos)</h3>
+<p>Edite <code>docker-compose.yml</code> para agregar límites:</p>
+<pre><code>services:
+  web:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+</code></pre>
+
+<h3>Cuándo escalar</h3>
+<table>
+  <tr><th>Indicador</th><th>Acción</th></tr>
+  <tr><td>CPU > 80% sostenido</td><td>Agregar instancias web</td></tr>
+  <tr><td>RAM > 80%</td><td>Aumentar memoria o agregar instancias</td></tr>
+  <tr><td>Latencia > 500ms</td><td>Verificar queries lentas (índices)</td></tr>
+  <tr><td>Cola de campañas crece</td><td>Aumentar concurrency del worker</td></tr>
+  <tr><td>Disco > 80%</td><td>Reducir retención o agregar almacenamiento</td></tr>
+</table>
+</section>
+
+<footer>
+  <p>Limpiador WhatsApp Cloud v1.0 · Documentación Técnica · Mayo 2026</p>
+</footer>
+
+</main>
+</body>
+</html>

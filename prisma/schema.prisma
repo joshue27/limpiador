@@ -1,0 +1,413 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ConversationStatus {
+  UNASSIGNED
+  MENU_PENDING
+  DEPARTMENT_QUEUE
+  CLAIMED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  DOCUMENT
+  VIDEO
+  STICKER
+  TEMPLATE
+  UNKNOWN
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  RECEIVED
+}
+
+enum DownloadStatus {
+  PENDING
+  DOWNLOADING
+  READY
+  FAILED
+}
+
+enum CampaignStatus {
+  DRAFT
+  QUEUED
+  SENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum CampaignRecipientStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+}
+
+enum ExportStatus {
+  PENDING
+  RUNNING
+  READY
+  FAILED
+}
+
+enum RestoreStatus {
+  PENDING
+  RUNNING
+  READY
+  FAILED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String?    @map("name")
+  phone        String?    @map("phone")
+  permissions  Json?      @map("permissions")
+  verificationCode String? @map("verification_code")
+  verifiedAt   DateTime?  @map("verified_at")
+  resetCode    String?    @map("reset_code")
+  resetExpires DateTime?  @map("reset_expires")
+  passwordHash String     @map("password_hash")
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?  @map("last_login_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  assignedConversations Conversation[] @relation("ConversationAssignee")
+  markedMedia           MediaAsset[]   @relation("MediaMarkedBy")
+  campaigns             Campaign[]
+  exportRuns            ExportRun[]
+  restoreRuns           RestoreRun[]
+  auditLogs             AuditLog[]
+  departments           UserDepartment[]
+  internalMessages      InternalMessage[]
+  receivedMessages      InternalMessage[] @relation("RecipientMessages")
+
+  @@map("users")
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users         UserDepartment[]
+  conversations Conversation[]
+
+  @@index([active, sortOrder])
+  @@map("departments")
+}
+
+model UserDepartment {
+  userId       String   @map("user_id")
+  departmentId String   @map("department_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, departmentId])
+  @@index([departmentId])
+  @@map("user_departments")
+}
+
+model Contact {
+  id                  String   @id @default(cuid())
+  waId                String   @unique @map("wa_id")
+  phone               String   @unique
+  displayName         String?  @map("display_name")
+  optInSource         String?  @map("opt_in_source")
+  tags                String[] @default([])
+  unsubscribed        Boolean  @default(false)
+  blocked             Boolean  @default(false)
+  assignedOperatorId  String?  @map("assigned_operator_id")
+  lastInboundAt       DateTime? @map("last_inbound_at")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  conversations       Conversation[]
+  messages            Message[]
+  campaignRecipients   CampaignRecipient[]
+
+  @@index([displayName])
+  @@index([phone])
+  @@map("contacts")
+}
+
+model ControlledTag {
+  id        String   @id
+  code      String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([active, name])
+  @@map("controlled_tags")
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  contactId     String   @map("contact_id")
+  status        ConversationStatus @default(UNASSIGNED)
+  assignedDepartmentId String? @map("assigned_department_id")
+  assignedToId  String?  @map("assigned_to")
+  lastMessageAt DateTime? @map("last_message_at")
+  unreadCount   Int      @default(0) @map("unread_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  contact    Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedDepartment Department? @relation(fields: [assignedDepartmentId], references: [id])
+  assignedTo User?   @relation("ConversationAssignee", fields: [assignedToId], references: [id])
+  messages   Message[]
+
+  @@unique([contactId])
+  @@index([status, assignedDepartmentId])
+  @@index([assignedToId, status])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id                String           @id @default(cuid())
+  wamid             String?          @unique
+  contactId         String           @map("contact_id")
+  conversationId    String           @map("conversation_id")
+  direction         MessageDirection
+  type              MessageType
+  body              String?
+  caption           String?
+  status            MessageStatus    @default(PENDING)
+  sentAt            DateTime?        @map("sent_at")
+  receivedAt        DateTime?        @map("received_at")
+  rawJson           Json?            @map("raw_json")
+  hiddenGlobally    Boolean          @default(false) @map("hidden_globally")
+  hiddenGloballyAt  DateTime?        @map("hidden_globally_at")
+  hiddenGloballyBy  String?          @map("hidden_globally_by")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  contact         Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversation    Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  statusEvents    MessageStatusEvent[]
+  mediaAssets     MediaAsset[]
+  hiddenByUsers   MessageHide[]
+
+  @@index([contactId, createdAt])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model MessageHide {
+  id        String   @id @default(cuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_hides")
+}
+
+model MessageStatusEvent {
+  id         String        @id @default(cuid())
+  messageId  String        @map("message_id")
+  status     MessageStatus
+  occurredAt DateTime      @map("occurred_at")
+  rawJson    Json?         @map("raw_json")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, status, occurredAt])
+  @@map("message_status_events")
+}
+
+model MediaAsset {
+  id             String         @id @default(cuid())
+  messageId      String         @map("message_id")
+  waMediaId      String         @unique @map("wa_media_id")
+  mimeType       String         @map("mime_type")
+  filename       String?
+  size           Int?
+  sha256         String?
+  storageKey     String?        @map("storage_key")
+  downloadStatus DownloadStatus @default(PENDING) @map("download_status")
+  downloadError  String?        @map("download_error")
+  isComprobante  Boolean        @default(false) @map("is_comprobante")
+  markedById     String?        @map("marked_by")
+  markedAt       DateTime?      @map("marked_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  markedBy User?   @relation("MediaMarkedBy", fields: [markedById], references: [id])
+
+  @@index([isComprobante, createdAt])
+  @@map("media_assets")
+}
+
+model Campaign {
+  id                 String         @id @default(cuid())
+  name               String
+  templateName       String         @map("template_name")
+  templateLanguage   String         @map("template_language")
+  status             CampaignStatus @default(DRAFT)
+  scheduledAt        DateTime?      @map("scheduled_at")
+  createdById        String         @map("created_by")
+  bodyPlaceholderMap Json?          @map("body_placeholder_map")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  createdBy  User                @relation(fields: [createdById], references: [id])
+  recipients CampaignRecipient[]
+
+  @@map("campaigns")
+}
+
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  metaId    String?  @unique @map("meta_id")
+  name      String   @unique
+  language  String
+  category  String
+  body      String
+  header    String?
+  footer    String?
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("message_templates")
+}
+
+model CampaignRecipient {
+  id           String                  @id @default(cuid())
+  campaignId   String                  @map("campaign_id")
+  contactId    String                  @map("contact_id")
+  status       CampaignRecipientStatus @default(PENDING)
+  wamid        String?                 @unique
+  attemptCount Int                     @default(0) @map("attempt_count")
+  lastError    String?                 @map("last_error")
+  csvData      Json?                   @map("csv_data")
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([status])
+  @@map("campaign_recipients")
+}
+
+model ExportRun {
+  id           String       @id @default(cuid())
+  month        String
+  status       ExportStatus @default(PENDING)
+  zipKey       String?      @map("zip_key")
+  manifestKey  String?      @map("manifest_key")
+  countsJson   Json?        @map("counts_json")
+  createdById  String       @map("created_by")
+  startedAt    DateTime?    @map("started_at")
+  completedAt  DateTime?    @map("completed_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([month, status])
+  @@map("export_runs")
+}
+
+model RestoreRun {
+  id               String        @id
+  status           RestoreStatus @default(PENDING)
+  archiveKey       String        @map("archive_key")
+  originalFilename String        @map("original_filename")
+  progress         Int           @default(0)
+  countsJson       Json?         @map("counts_json")
+  error            String?
+  createdById      String        @map("created_by")
+  startedAt        DateTime?     @map("started_at")
+  completedAt      DateTime?     @map("completed_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([status, updatedAt])
+  @@map("restore_runs")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?  @map("user_id")
+  action       String
+  entityType   String?  @map("entity_type")
+  entityId     String?  @map("entity_id")
+  metadataJson Json?    @map("metadata_json")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([action, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model InternalMessage {
+  id          String    @id @default(cuid())
+  userId      String
+  recipientId String?
+  body        String
+  readAt      DateTime?  @map("read_at")
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+  recipient   User?     @relation("RecipientMessages", fields: [recipientId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId, recipientId])
+  @@map("internal_messages")
+}
