@@ -3,12 +3,13 @@ import { revalidatePath } from 'next/cache';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { settingsFilePath } from '@/lib/settings-files';
 import { getVerifiedSession } from '@/modules/auth/guards';
 
 export const runtime = 'nodejs';
 
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
-const SETTINGS_FILE = path.join(process.cwd(), 'branding.json');
+const SETTINGS_FILE = settingsFilePath('branding.json');
 
 async function readSettings(): Promise<Record<string, string>> {
   try {

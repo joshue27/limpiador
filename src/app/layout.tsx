@@ -1,6 +1,7 @@
 import './globals.css';
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+
+import { settingsFilePath } from '@/lib/settings-files';
 
 export const metadata = {
   title: 'CleanApp WhatsApp Cloud',
@@ -10,7 +11,7 @@ export const metadata = {
 
 async function getAccentColor(): Promise<string | null> {
   try {
-    const data = await readFile(path.join(process.cwd(), 'branding.json'), 'utf-8');
+    const data = await readFile(settingsFilePath('branding.json'), 'utf-8');
     const settings = JSON.parse(data) as { accentColor?: string };
     return settings.accentColor || null;
   } catch {

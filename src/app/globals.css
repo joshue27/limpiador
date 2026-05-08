@@ -141,11 +141,15 @@ a:hover {
 }
 
 .sidebar-logo {
-  max-width: 140px;
-  max-height: 40px;
+  max-width: 165px;
+  max-height: 64px;
   object-fit: contain;
-  margin-bottom: 6px;
+  margin: 0 auto 10px;
   display: block;
+}
+
+.sidebar > div:first-child {
+  text-align: center;
 }
 
 .nav-list {

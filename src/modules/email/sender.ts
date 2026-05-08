@@ -1,12 +1,11 @@
 import { createTransport } from 'nodemailer';
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 
 import { settingsFilePath } from '@/lib/settings-files';
 
 async function getBranding() {
   try {
-    const data = await readFile(path.join(process.cwd(), 'branding.json'), 'utf-8');
+    const data = await readFile(settingsFilePath('branding.json'), 'utf-8');
     return JSON.parse(data) as { accentColor?: string };
   } catch {
     return {};
