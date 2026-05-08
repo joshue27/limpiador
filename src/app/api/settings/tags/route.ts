@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { safeRedirect } from '@/lib/safe-redirect';
 import { auditDeniedAccess, getVerifiedSession } from '@/modules/auth/guards';
 import { AUDIT_ACTIONS } from '@/modules/audit/actions';
 import { writeAuditLog } from '@/modules/audit/audit';
@@ -8,7 +9,7 @@ import { createControlledTag } from '@/modules/tags/controlled-tags';
 export const runtime = 'nodejs';
 
 function redirectToSettings(request: Request, notice?: string, type: 'success' | 'error' = 'success') {
-  const url = new URL('/settings', request.url);
+  const url = new URL(safeRedirect(request, '/settings'));
   if (notice) {
     url.searchParams.set('tagNotice', notice);
     url.searchParams.set('tagNoticeType', type);
