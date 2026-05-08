@@ -9,8 +9,8 @@ node_modules/
 playwright-report/
 test-results/
 *.log
-media/
-exports/
+/media/
+/exports/
 cloudflared*
 _test-*
 _check-*

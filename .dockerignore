@@ -1,7 +1,7 @@
 node_modules
 .next
-media
-exports
+/media
+/exports
 .env
 .env.local
 *.log
