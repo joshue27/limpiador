@@ -18,8 +18,8 @@ const envSchema = z.object({
   API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
   MEDIA_MAX_BYTES: z.coerce.number().int().positive().default(25 * 1024 * 1024),
   WHATSAPP_GRAPH_API_VERSION: z.string().min(1).default('v21.0'),
-  WHATSAPP_PHONE_NUMBER_ID: z.string().min(1),
-  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().min(1),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(''),
+  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional().default(''),
   WHATSAPP_ACCESS_TOKEN: z.string().optional().default(''),
   WHATSAPP_APP_SECRET: z.string().optional().default(''),
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional().default(''),
@@ -69,8 +69,8 @@ function buildWhatsappConfig(env: ReturnType<typeof envSchema.parse>, appUrl: st
 
   return {
     graphApiVersion: file?.graphApiVersion || env.WHATSAPP_GRAPH_API_VERSION,
-    phoneNumberId: file?.phoneNumberId || env.WHATSAPP_PHONE_NUMBER_ID,
-    businessAccountId: file?.businessAccountId || env.WHATSAPP_BUSINESS_ACCOUNT_ID,
+    phoneNumberId: resolve('phoneNumberId', env.WHATSAPP_PHONE_NUMBER_ID),
+    businessAccountId: resolve('businessAccountId', env.WHATSAPP_BUSINESS_ACCOUNT_ID),
     accessToken: resolve('accessToken', env.WHATSAPP_ACCESS_TOKEN),
     appSecret: resolve('appSecret', env.WHATSAPP_APP_SECRET),
     webhookVerifyToken: resolve('webhookVerifyToken', env.WHATSAPP_WEBHOOK_VERIFY_TOKEN),
