@@ -28,6 +28,9 @@ CREATE TYPE "CampaignRecipientStatus" AS ENUM ('PENDING', 'QUEUED', 'SENT', 'DEL
 -- CreateEnum
 CREATE TYPE "ExportStatus" AS ENUM ('PENDING', 'RUNNING', 'READY', 'FAILED');
 
+-- CreateEnum
+CREATE TYPE "RestoreStatus" AS ENUM ('PENDING', 'RUNNING', 'READY', 'FAILED');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
@@ -191,6 +194,7 @@ CREATE TABLE "campaigns" (
     "status" "CampaignStatus" NOT NULL DEFAULT 'DRAFT',
     "scheduled_at" TIMESTAMP(3),
     "created_by" TEXT NOT NULL,
+    "body_placeholder_map" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -223,6 +227,7 @@ CREATE TABLE "campaign_recipients" (
     "wamid" TEXT,
     "attempt_count" INTEGER NOT NULL DEFAULT 0,
     "last_error" TEXT,
+    "csv_data" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -247,6 +252,24 @@ CREATE TABLE "export_runs" (
 );
 
 -- CreateTable
+CREATE TABLE "restore_runs" (
+    "id" TEXT NOT NULL,
+    "status" "RestoreStatus" NOT NULL DEFAULT 'PENDING',
+    "archive_key" TEXT NOT NULL,
+    "original_filename" TEXT NOT NULL,
+    "progress" INTEGER NOT NULL DEFAULT 0,
+    "counts_json" JSONB,
+    "error" TEXT,
+    "created_by" TEXT NOT NULL,
+    "started_at" TIMESTAMP(3),
+    "completed_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "restore_runs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "audit_logs" (
     "id" TEXT NOT NULL,
     "user_id" TEXT,
@@ -267,6 +290,7 @@ CREATE TABLE "internal_messages" (
     "userId" TEXT NOT NULL,
     "recipientId" TEXT,
     "body" TEXT NOT NULL,
+    "read_at" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "internal_messages_pkey" PRIMARY KEY ("id")
@@ -354,6 +378,9 @@ CREATE UNIQUE INDEX "campaign_recipients_campaign_id_contact_id_key" ON "campaig
 CREATE INDEX "export_runs_month_status_idx" ON "export_runs"("month", "status");
 
 -- CreateIndex
+CREATE INDEX "restore_runs_status_updated_at_idx" ON "restore_runs"("status", "updated_at");
+
+-- CreateIndex
 CREATE INDEX "audit_logs_action_created_at_idx" ON "audit_logs"("action", "created_at");
 
 -- CreateIndex
@@ -411,6 +438,9 @@ ALTER TABLE "campaign_recipients" ADD CONSTRAINT "campaign_recipients_contact_id
 ALTER TABLE "export_runs" ADD CONSTRAINT "export_runs_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "restore_runs" ADD CONSTRAINT "restore_runs_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -464,4 +494,3 @@ CREATE INDEX IF NOT EXISTS "messages_caption_trgm_idx" ON "messages" USING GIN (
 -- Internal chat read status
 ALTER TABLE "internal_messages" ADD COLUMN IF NOT EXISTS "read_at" TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS "internal_messages_recipientId_read_at_idx" ON "internal_messages"("recipientId", "read_at");
-
