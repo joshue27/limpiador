@@ -449,32 +449,6 @@ ALTER TABLE "internal_messages" ADD CONSTRAINT "internal_messages_userId_fkey" F
 -- AddForeignKey
 ALTER TABLE "internal_messages" ADD CONSTRAINT "internal_messages_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- CreateEnum (restore)
-CREATE TYPE "RestoreStatus" AS ENUM ('PENDING', 'RUNNING', 'READY', 'FAILED');
-
--- CreateTable (restore)
-CREATE TABLE "restore_runs" (
-  "id" TEXT NOT NULL,
-  "status" "RestoreStatus" NOT NULL DEFAULT 'PENDING',
-  "archive_key" TEXT NOT NULL,
-  "original_filename" TEXT NOT NULL,
-  "progress" INTEGER NOT NULL DEFAULT 0,
-  "counts_json" JSONB,
-  "error" TEXT,
-  "created_by" TEXT NOT NULL,
-  "started_at" TIMESTAMP(3),
-  "completed_at" TIMESTAMP(3),
-  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "restore_runs_pkey" PRIMARY KEY ("id")
-);
-
-ALTER TABLE "restore_runs"
-  ADD CONSTRAINT "restore_runs_created_by_fkey"
-  FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
-CREATE INDEX "restore_runs_status_updated_at_idx" ON "restore_runs"("status", "updated_at");
-
 -- Full-text search indexes
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
@@ -490,7 +464,3 @@ CREATE INDEX IF NOT EXISTS "contacts_display_name_trgm_idx" ON "contacts" USING 
 CREATE INDEX IF NOT EXISTS "contacts_phone_trgm_idx" ON "contacts" USING GIN ("phone" gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS "messages_body_trgm_idx" ON "messages" USING GIN ("body" gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS "messages_caption_trgm_idx" ON "messages" USING GIN ("caption" gin_trgm_ops);
-
--- Internal chat read status
-ALTER TABLE "internal_messages" ADD COLUMN IF NOT EXISTS "read_at" TIMESTAMPTZ;
-CREATE INDEX IF NOT EXISTS "internal_messages_recipientId_read_at_idx" ON "internal_messages"("recipientId", "read_at");
