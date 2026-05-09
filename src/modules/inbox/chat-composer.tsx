@@ -180,7 +180,7 @@ export function ChatComposer(props: ChatComposerProps) {
                 | { ok?: boolean; notice?: string; message?: QuotedMessageState }
                 | null;
 
-            if (response.ok && payload?.ok && payload.message) {
+            if (response.ok && payload?.ok) {
                 setBodyValue('');
                 setSelectedAttachments([]);
                 syncAttachmentInput([]);
