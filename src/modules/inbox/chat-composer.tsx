@@ -43,8 +43,15 @@ export function ChatComposer(props: ChatComposerProps) {
     const [bodyValue, setBodyValue] = useState('');
     const [emojiPopoverOpen, setEmojiPopoverOpen] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const attachmentPills = getComposerAttachmentPills(selectedAttachments);
     const canShowEmojiPopover = props.canSendFreeText && props.fieldTag === 'input';
+    const hasAttachments = selectedAttachments.length > 0;
+    const submitButtonLabel = isSubmitting
+        ? hasAttachments
+            ? 'Enviando archivo…'
+            : 'Enviando…'
+        : props.submitLabel;
 
     function syncAttachmentInput(files: File[]) {
         if (!attachmentInputRef.current) {
@@ -64,10 +71,10 @@ export function ChatComposer(props: ChatComposerProps) {
     async function submitWithFetch(form: HTMLFormElement) {
         if (sendingRef.current) return;
         sendingRef.current = true;
+        setIsSubmitting(true);
         setNotice(null);
 
         try {
-            const hasAttachments = selectedAttachments.length > 0;
             const body = bodyValue.trim();
             const isTextOnly = props.canSendFreeText && body && !hasAttachments && props.fieldTag === 'input';
 
@@ -75,7 +82,7 @@ export function ChatComposer(props: ChatComposerProps) {
                 if (isTextOnly) {
                     await submitTextOptimistic(form, body);
                 } else if (hasAttachments) {
-                    await submitAttachmentOptimistic(form);
+                    await submitAttachmentDeferred(form);
                 } else {
                     await submitStandard(form);
                 }
@@ -86,6 +93,7 @@ export function ChatComposer(props: ChatComposerProps) {
             setNotice('Ocurrió un error inesperado. Intentá de nuevo.');
         } finally {
             sendingRef.current = false;
+            setIsSubmitting(false);
         }
     }
 
@@ -151,51 +159,13 @@ export function ChatComposer(props: ChatComposerProps) {
         }
     }
 
-    async function submitAttachmentOptimistic(form: HTMLFormElement) {
-        const clientId = makeClientId();
-        const firstFile = selectedAttachments[0];
-        const mimeType = firstFile?.type ?? 'application/octet-stream';
-        const messageType: QuotedMessageState['type'] =
-            mimeType.startsWith('image/') ? 'IMAGE' :
-            mimeType.startsWith('audio/') ? 'AUDIO' :
-            mimeType.startsWith('video/') ? 'VIDEO' :
-            'DOCUMENT';
-
-        const optimisticMsg: QuotedMessageState = {
-            id: clientId,
-            direction: 'OUTBOUND',
-            type: messageType,
-            body: bodyValue || null,
-            caption: null,
-            status: 'PENDING',
-            createdAt: new Date().toISOString(),
-            mediaAssets: selectedAttachments.map((file, index) => ({
-                id: `client:asset:${clientId}:${index}`,
-                filename: file.name,
-                mimeType: file.type || 'application/octet-stream',
-                size: file.size,
-                downloadStatus: 'PENDING',
-                isComprobante: false,
-            })),
-            rawJson: {},
-        };
-
-        // Append optimistic bubble immediately
-        props.onOptimisticSend?.(optimisticMsg);
-
-        // Clear composer immediately (same as text path)
-        setBodyValue('');
+    async function submitAttachmentDeferred(form: HTMLFormElement) {
+        const captionValue = bodyValue;
         const savedAttachments = [...selectedAttachments];
-        setSelectedAttachments([]);
-        syncAttachmentInput([]);
-        props.onClearQuote?.();
-        form.reset();
-        bodyInputRef.current?.focus();
 
         try {
-            // Rebuild FormData with the saved files
             const fd = new FormData();
-            if (bodyValue) fd.set('body', bodyValue);
+            if (captionValue) fd.set('body', captionValue);
             if (props.quotedMessage) fd.set('quotedMessageId', props.quotedMessage.id);
             const templateKey = new FormData(form).get('templateKey');
             if (typeof templateKey === 'string' && templateKey) fd.set('templateKey', templateKey);
@@ -211,27 +181,20 @@ export function ChatComposer(props: ChatComposerProps) {
                 | null;
 
             if (response.ok && payload?.ok && payload.message) {
-                // Success: replace optimistic row with server message
-                props.onReconcileMessage?.(clientId.replace(/^client:/, ''), payload.message);
-            } else if (payload?.message) {
-                // Server persisted a FAILED row — reconcile with it
-                props.onReconcileMessage?.(clientId.replace(/^client:/, ''), payload.message);
+                setBodyValue('');
+                setSelectedAttachments([]);
+                syncAttachmentInput([]);
+                props.onClearQuote?.();
+                form.reset();
+                router.refresh();
+                window.setTimeout(() => router.refresh(), 700);
+                bodyInputRef.current?.focus();
+            } else if (payload?.message || payload?.notice) {
                 setNotice(payload.notice ?? 'El archivo no pudo enviarse.');
             } else {
-                // No message in response — mark optimistic as FAILED
-                const failedMsg: QuotedMessageState = {
-                    ...optimisticMsg,
-                    status: 'FAILED',
-                };
-                props.onReconcileMessage?.(clientId.replace(/^client:/, ''), failedMsg);
                 setNotice(payload?.notice ?? 'No se pudo enviar el archivo.');
             }
         } catch {
-            const failedMsg: QuotedMessageState = {
-                ...optimisticMsg,
-                status: 'FAILED',
-            };
-            props.onReconcileMessage?.(clientId.replace(/^client:/, ''), failedMsg);
             setNotice('No se pudo enviar el archivo. Revisá la conexión e intentá de nuevo.');
         }
     }
@@ -347,6 +310,7 @@ export function ChatComposer(props: ChatComposerProps) {
                                 multiple
                                 accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,application/vnd.ms-excel,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-powerpoint,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx"
                                 aria-label="Adjuntar imagen o PDF"
+                                disabled={isSubmitting}
                                 onChange={(event) => setSelectedAttachments(Array.from(event.currentTarget.files ?? []))}
                             />
                         </label>
@@ -362,14 +326,14 @@ export function ChatComposer(props: ChatComposerProps) {
                             name="body"
                             value={bodyValue}
                             placeholder={props.bodyPlaceholder}
-                            disabled={!props.canSendFreeText}
+                            disabled={!props.canSendFreeText || isSubmitting}
                             onChange={(event) => setBodyValue(event.currentTarget.value)}
                         />
                     </label>
                 ) : (
                     <label className="composer-field composer-field-inline template-picker-field">
                         <span className="sr-only">Plantilla de apertura</span>
-                        <select name="templateKey" defaultValue="" disabled={props.openingTemplates.length === 0} required={props.openingTemplates.length > 0}>
+                        <select name="templateKey" defaultValue="" disabled={props.openingTemplates.length === 0 || isSubmitting} required={props.openingTemplates.length > 0}>
                             <option value="">{props.openingTemplates.length ? 'Plantilla' : 'Sin plantillas'}</option>
                             {props.openingTemplates.map((template) => (
                                 <option key={template.key} value={template.key}>{template.label}</option>
@@ -384,7 +348,7 @@ export function ChatComposer(props: ChatComposerProps) {
                         value={props.quotedMessage.id}
                     />
                 )}
-                <button type="submit" className="compact-action-button" disabled={props.submitDisabled}>{props.submitLabel}</button>
+                <button type="submit" className="compact-action-button" disabled={props.submitDisabled || isSubmitting}>{submitButtonLabel}</button>
             </div>
             {notice ? <p className="composer-notice-error" role="alert">{notice}</p> : null}
             {attachmentPills.length > 0 ? (
