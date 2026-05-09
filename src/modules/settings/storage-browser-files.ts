@@ -1,4 +1,4 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { getConfig } from '@/lib/config';
@@ -105,4 +105,9 @@ export async function resolveStorageBrowserFile(kind: StorageBrowserKind, relati
   }
 
   return { rootPath, filePath, fileStat };
+}
+
+export async function deleteStorageBrowserFile(kind: StorageBrowserKind, relativePath: string) {
+  const { filePath } = await resolveStorageBrowserFile(kind, relativePath);
+  await rm(filePath, { force: false });
 }

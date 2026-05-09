@@ -33,6 +33,16 @@ export function StorageBrowser() {
   const [error, setError] = useState<string | null>(null);
   const [roots, setRoots] = useState<StorageBrowserRootListing[]>([]);
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+
+  async function loadRoots() {
+    const response = await fetch('/api/settings/storage-browser', { cache: 'no-store' });
+    const payload = await response.json() as { roots?: StorageBrowserRootListing[]; error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || 'No se pudo cargar el listado.');
+    }
+    return payload.roots || [];
+  }
 
   async function openBrowser() {
     setOpen(true);
@@ -41,14 +51,7 @@ export function StorageBrowser() {
     setCopiedPath(null);
 
     try {
-      const response = await fetch('/api/settings/storage-browser', { cache: 'no-store' });
-      const payload = await response.json() as { roots?: StorageBrowserRootListing[]; error?: string };
-      if (!response.ok) {
-        setError(payload.error || 'No se pudo cargar el listado.');
-        setRoots([]);
-        return;
-      }
-      setRoots(payload.roots || []);
+      setRoots(await loadRoots());
     } catch {
       setError('No se pudo cargar el listado.');
       setRoots([]);
@@ -64,6 +67,30 @@ export function StorageBrowser() {
       window.setTimeout(() => setCopiedPath((current) => current === absolutePath ? null : current), 2000);
     } catch {
       setCopiedPath(null);
+    }
+  }
+
+  async function deleteFile(kind: StorageBrowserRootListing['kind'], relativePath: string) {
+    const key = `${kind}:${relativePath}`;
+    setPendingDelete(key);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/settings/storage-browser/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, path: relativePath }),
+      });
+      const payload = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      if (!response.ok || !payload?.ok) {
+        setError(payload?.error || 'No se pudo eliminar el archivo.');
+        return;
+      }
+      setRoots(await loadRoots());
+    } catch {
+      setError('No se pudo eliminar el archivo.');
+    } finally {
+      setPendingDelete(null);
     }
   }
 
@@ -128,6 +155,18 @@ export function StorageBrowser() {
                               </a>
                               <button type="button" className="button-secondary" onClick={() => copyPath(file.absolutePath)}>
                                 {copiedPath === file.absolutePath ? 'Copiado' : 'Copiar ruta'}
+                              </button>
+                              <button
+                                type="button"
+                                className="button-danger"
+                                disabled={pendingDelete === `${root.kind}:${file.relativePath}`}
+                                onClick={() => {
+                                  if (window.confirm(`¿Eliminar ${file.relativePath}?`)) {
+                                    void deleteFile(root.kind, file.relativePath);
+                                  }
+                                }}
+                              >
+                                {pendingDelete === `${root.kind}:${file.relativePath}` ? 'Eliminando…' : 'Eliminar'}
                               </button>
                             </div>
                           </td>
