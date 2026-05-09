@@ -78,23 +78,26 @@ export default async function DashboardPage() {
   }
 
   // WhatsApp phone health for admin
-  let phoneHealth: { displayNumber: string; quality: string; limit: string } | null = null;
+  let phoneHealth: { displayNumber: string; quality: string; capacityLabel: string; capacityCaption: string } | null = null;
   if (isAdmin) {
     const config = (await import('@/lib/config')).getConfig();
     try {
       const client = createWhatsAppCloudClient();
       const info = await client.getPhoneNumberInfo();
+      const throughputLevel = info.throughput?.level?.trim();
       phoneHealth = {
         displayNumber: info.display_phone_number || config.whatsapp.phoneNumberId,
         quality: info.quality_rating || 'UNKNOWN',
-        limit: String(info.messaging_limit ?? '?'),
+        capacityLabel: info.messaging_limit != null ? String(info.messaging_limit) : throughputLevel || 'No disponible',
+        capacityCaption: info.messaging_limit != null ? 'Límite diario' : throughputLevel ? 'Nivel de envío' : 'Capacidad de envío',
       };
     } catch {
       // Fallback: show basic info from config
       phoneHealth = {
         displayNumber: config.whatsapp.phoneNumberId,
         quality: 'UNKNOWN',
-        limit: '?',
+        capacityLabel: 'No disponible',
+        capacityCaption: 'Capacidad de envío',
       };
     }
   }
@@ -122,7 +125,8 @@ export default async function DashboardPage() {
         <WhatsAppHealthCard
           phoneNumberId=""
           qualityRating={phoneHealth.quality}
-          messagingLimit={phoneHealth.limit}
+          messagingCapacityLabel={phoneHealth.capacityLabel}
+          messagingCapacityCaption={phoneHealth.capacityCaption}
           displayPhoneNumber={phoneHealth.displayNumber}
         />
       )}

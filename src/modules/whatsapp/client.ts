@@ -137,7 +137,10 @@ export class WhatsAppCloudClient {
       id: string;
       display_phone_number: string;
       quality_rating: string;
-      messaging_limit: number;
+      messaging_limit?: number;
+      throughput?: {
+        level?: string;
+      };
     }>(`${this.graphBaseUrl}/${this.phoneNumberId}`);
   }
 
