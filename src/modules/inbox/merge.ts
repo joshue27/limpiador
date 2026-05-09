@@ -57,7 +57,43 @@ export function reconcileOptimisticRow(
   const fullClientId = `${CLIENT_ID_PREFIX}${clientId}`;
   const index = current.findIndex((m) => m.id === fullClientId);
 
-  if (index === -1) return current;
+  if (index === -1) {
+    if (current.some((message) => message.id === serverMessage.id)) {
+      return current;
+    }
+
+    const serverAttachmentNames = new Set(
+      (serverMessage.mediaAssets ?? [])
+        .map((asset) => asset.filename)
+        .filter((filename): filename is string => Boolean(filename)),
+    );
+
+    const fallbackIndex = current.findIndex((message) => {
+      if (!message.id.startsWith(CLIENT_ID_PREFIX)) return false;
+      if (message.type !== serverMessage.type) return false;
+      if (message.direction !== serverMessage.direction) return false;
+
+      const messageAttachmentNames = new Set(
+        (message.mediaAssets ?? [])
+          .map((asset) => asset.filename)
+          .filter((filename): filename is string => Boolean(filename)),
+      );
+
+      if (serverAttachmentNames.size > 0 && messageAttachmentNames.size > 0) {
+        return [...serverAttachmentNames].every((filename) => messageAttachmentNames.has(filename));
+      }
+
+      return message.body === serverMessage.body && message.caption === serverMessage.caption;
+    });
+
+    if (fallbackIndex !== -1) {
+      const result = [...current];
+      result[fallbackIndex] = serverMessage;
+      return result;
+    }
+
+    return [...current, serverMessage];
+  }
 
   const result = [...current];
   result[index] = serverMessage;
