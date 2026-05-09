@@ -34,6 +34,7 @@ export function StorageBrowser() {
   const [roots, setRoots] = useState<StorageBrowserRootListing[]>([]);
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
 
   async function loadRoots() {
     const response = await fetch('/api/settings/storage-browser', { cache: 'no-store' });
@@ -87,6 +88,7 @@ export function StorageBrowser() {
         return;
       }
       setRoots(await loadRoots());
+      setConfirmDeleteKey(null);
     } catch {
       setError('No se pudo eliminar el archivo.');
     } finally {
@@ -145,6 +147,12 @@ export function StorageBrowser() {
                           <td>{formatSize(file.size)}</td>
                           <td>{new Date(file.modifiedAt).toLocaleString('es-GT', { timeZone: 'America/Guatemala' })}</td>
                           <td>
+                            {(() => {
+                              const deleteKey = `${root.kind}:${file.relativePath}`;
+                              const isConfirmingDelete = confirmDeleteKey === deleteKey;
+                              const isDeleting = pendingDelete === deleteKey;
+
+                              return (
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                               <a
                                 href={`/api/settings/storage-browser/download?kind=${root.kind}&path=${encodeURIComponent(file.relativePath)}`}
@@ -156,19 +164,39 @@ export function StorageBrowser() {
                               <button type="button" className="button-secondary" onClick={() => copyPath(file.absolutePath)}>
                                 {copiedPath === file.absolutePath ? 'Copiado' : 'Copiar ruta'}
                               </button>
-                              <button
-                                type="button"
-                                className="button-danger"
-                                disabled={pendingDelete === `${root.kind}:${file.relativePath}`}
-                                onClick={() => {
-                                  if (window.confirm(`¿Eliminar ${file.relativePath}?`)) {
-                                    void deleteFile(root.kind, file.relativePath);
-                                  }
-                                }}
-                              >
-                                {pendingDelete === `${root.kind}:${file.relativePath}` ? 'Eliminando…' : 'Eliminar'}
-                              </button>
+                              {!isConfirmingDelete ? (
+                                <button
+                                  type="button"
+                                  className="button-danger"
+                                  disabled={isDeleting}
+                                  onClick={() => setConfirmDeleteKey(deleteKey)}
+                                >
+                                  {isDeleting ? 'Eliminando…' : 'Eliminar'}
+                                </button>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', border: '1px solid #fecaca', borderRadius: 4, background: '#fff7f7' }}>
+                                  <small style={{ color: '#991b1b' }}>¿Eliminar?</small>
+                                  <button
+                                    type="button"
+                                    className="button-danger"
+                                    disabled={isDeleting}
+                                    onClick={() => void deleteFile(root.kind, file.relativePath)}
+                                  >
+                                    {isDeleting ? 'Eliminando…' : 'Sí'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="button-secondary"
+                                    disabled={isDeleting}
+                                    onClick={() => setConfirmDeleteKey((current) => current === deleteKey ? null : current)}
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                              )}
                             </div>
+                              );
+                            })()}
                           </td>
                         </tr>
                       ))}
