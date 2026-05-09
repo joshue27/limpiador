@@ -114,9 +114,6 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
   } as const;
 }
 
-let cachedConfig: AppConfig | undefined;
-
 export function getConfig() {
-  cachedConfig ??= loadConfig();
-  return cachedConfig;
+  return loadConfig();
 }
