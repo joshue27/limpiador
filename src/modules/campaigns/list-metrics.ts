@@ -9,6 +9,11 @@ export type CampaignCsvHeaderRow = {
   header: string;
 };
 
+export type CampaignResponseCountRow = {
+  campaignId: string;
+  responded: number;
+};
+
 export type CampaignRecipientSummary = {
   total: number;
   counts: Record<string, number>;
@@ -39,4 +44,8 @@ export function buildCampaignCsvHeaderMap(rows: CampaignCsvHeaderRow[]) {
   return new Map(
     [...headersByCampaign.entries()].map(([campaignId, headers]) => [campaignId, [...headers].sort()]),
   );
+}
+
+export function buildCampaignResponseCountMap(rows: CampaignResponseCountRow[]) {
+  return new Map(rows.map((row) => [row.campaignId, row.responded]));
 }

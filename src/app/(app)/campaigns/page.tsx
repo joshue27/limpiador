@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/modules/auth/guards';
 import { CampaignForm } from '@/modules/campaigns/CampaignForm';
 import { CampaignRow } from '@/modules/campaigns/CampaignRow';
-import { buildCampaignCsvHeaderMap, buildCampaignRecipientSummaryMap } from '@/modules/campaigns/list-metrics';
+import { buildCampaignCsvHeaderMap, buildCampaignRecipientSummaryMap, buildCampaignResponseCountMap } from '@/modules/campaigns/list-metrics';
 
 const campaignStatusLabels: Record<string, string> = {
   DRAFT: 'Borrador',
@@ -60,7 +60,7 @@ export default async function CampaignsPage({
   });
 
   const campaignIds = campaigns.map((campaign) => campaign.id);
-  const [recipientCountRows, csvHeaderRows] = campaignIds.length > 0
+  const [recipientCountRows, csvHeaderRows, responseCountRows] = campaignIds.length > 0
     ? await Promise.all([
         prisma.campaignRecipient.groupBy({
           by: ['campaignId', 'status'],
@@ -77,8 +77,21 @@ export default async function CampaignsPage({
           GROUP BY cr.campaign_id, csv_keys.header
           ORDER BY cr.campaign_id ASC, csv_keys.header ASC
         `),
+        prisma.$queryRaw<Array<{ campaignId: string; responded: bigint | number }>>(Prisma.sql`
+          SELECT
+            cr.campaign_id AS "campaignId",
+            COUNT(DISTINCT cr.id) AS responded
+          FROM campaign_recipients cr
+          JOIN messages outbound ON outbound.wamid = cr.wamid
+          JOIN messages inbound
+            ON inbound.contact_id = cr.contact_id
+           AND inbound.direction = 'INBOUND'::"MessageDirection"
+           AND inbound.created_at > COALESCE(outbound.sent_at, outbound.created_at)
+          WHERE cr.campaign_id IN (${Prisma.join(campaignIds)})
+          GROUP BY cr.campaign_id
+        `),
       ])
-    : [[], []];
+    : [[], [], []];
   const recipientSummaries = buildCampaignRecipientSummaryMap(
     recipientCountRows.map((row) => ({
       campaignId: row.campaignId,
@@ -87,6 +100,12 @@ export default async function CampaignsPage({
     })),
   );
   const csvHeadersByCampaign = buildCampaignCsvHeaderMap(csvHeaderRows);
+  const responsesByCampaign = buildCampaignResponseCountMap(
+    responseCountRows.map((row) => ({
+      campaignId: row.campaignId,
+      responded: typeof row.responded === 'bigint' ? Number(row.responded) : row.responded,
+    })),
+  );
 
   return (
     <div className="stack" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -122,7 +141,11 @@ export default async function CampaignsPage({
                 const summary = recipientSummaries.get(campaign.id) ?? { total: 0, counts: {} };
                 const counts = summary.counts;
                 const total = summary.total;
-                const done = (counts.SENT ?? 0) + (counts.DELIVERED ?? 0) + (counts.READ ?? 0);
+                const sent = (counts.SENT ?? 0) + (counts.DELIVERED ?? 0) + (counts.READ ?? 0);
+                const delivered = (counts.DELIVERED ?? 0) + (counts.READ ?? 0);
+                const read = counts.READ ?? 0;
+                const responded = responsesByCampaign.get(campaign.id) ?? 0;
+                const done = sent;
                 const templateBody = templateBodyByName.get(campaign.templateName) ?? '';
                 const placeholders = extractPlaceholders(templateBody);
                 const csvHeaders = csvHeadersByCampaign.get(campaign.id) ?? [];
@@ -140,7 +163,7 @@ export default async function CampaignsPage({
                       {campaign.status === 'SENDING' ? (
                         <><small>{done}/{total}</small><div className="campaign-progress-bar"><div className="campaign-progress-fill" style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} /></div></>
                       ) : (
-                        <small>Total: {total} · Enviados: {counts.SENT ?? 0} · Fallidos: {counts.FAILED ?? 0}</small>
+                        <small>Total: {total} · Enviados: {sent} · Entregados: {delivered} · Leídos: {read} · Respondidos: {responded} · Fallidos: {counts.FAILED ?? 0}</small>
                       )}
                     </td>
                     <td>{campaign.createdBy.email}</td>
@@ -150,7 +173,7 @@ export default async function CampaignsPage({
                         campaignName={campaign.name}
                         status={campaign.status}
                         totalRecipients={total}
-                        sent={counts.SENT ?? 0}
+                        sent={sent}
                         failed={counts.FAILED ?? 0}
                         placeholders={placeholders}
                         placeholderMap={(campaign.bodyPlaceholderMap as Record<string, string> | null) ?? {}}
