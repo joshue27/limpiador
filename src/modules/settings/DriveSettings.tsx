@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 
+import { StorageBrowser } from '@/modules/settings/StorageBrowser';
+
 type DriveSettingsProps = {
   notice?: string | null;
   noticeType?: 'success' | 'error';
@@ -143,6 +145,7 @@ export function DriveSettings({ notice = null, noticeType = 'success' }: DriveSe
             {backingUp ? 'Respaldando…' : 'Respaldar y subir ahora'}
           </button>
         )}
+        <StorageBrowser />
         {result && <small style={{ color: resultType === 'error' ? '#dc2626' : '#166534' }}>{result}</small>}
       </form>
     </div>
