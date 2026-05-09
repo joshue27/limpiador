@@ -16,6 +16,8 @@ type ConversationMessageAttachment = {
 export type ConversationMessageAttachmentPreview =
   | {
       kind: 'image';
+      assetId: string;
+      downloadStatus: string;
       key: string;
       src: string;
       href: string;
@@ -27,6 +29,8 @@ export type ConversationMessageAttachmentPreview =
     }
   | {
       kind: 'audio';
+      assetId: string;
+      downloadStatus: string;
       key: string;
       src: string;
       href: string;
@@ -37,6 +41,8 @@ export type ConversationMessageAttachmentPreview =
     }
   | {
       kind: 'video';
+      assetId: string;
+      downloadStatus: string;
       key: string;
       src: string;
       href: string;
@@ -47,6 +53,8 @@ export type ConversationMessageAttachmentPreview =
     }
   | {
       kind: 'link';
+      assetId: string;
+      downloadStatus: string;
       key: string;
       href: string;
       label: string;
@@ -70,6 +78,8 @@ export function getConversationMessageAttachmentPreviews(
       if (isImage && asset.downloadStatus === 'READY') {
         return {
           kind: 'image' as const,
+          assetId: asset.id,
+          downloadStatus: asset.downloadStatus,
           key: asset.id,
           src: previewUrl,
           href: previewUrl,
@@ -84,6 +94,8 @@ export function getConversationMessageAttachmentPreviews(
       if (isAudio && asset.downloadStatus === 'READY') {
         return {
           kind: 'audio' as const,
+          assetId: asset.id,
+          downloadStatus: asset.downloadStatus,
           key: asset.id,
           src: previewUrl,
           href: previewUrl,
@@ -97,6 +109,8 @@ export function getConversationMessageAttachmentPreviews(
       if (isVideo && asset.downloadStatus === 'READY') {
         return {
           kind: 'video' as const,
+          assetId: asset.id,
+          downloadStatus: asset.downloadStatus,
           key: asset.id,
           src: previewUrl,
           href: previewUrl,
@@ -115,6 +129,8 @@ export function getConversationMessageAttachmentPreviews(
 
       return {
         kind: 'link' as const,
+        assetId: asset.id,
+        downloadStatus: asset.downloadStatus,
         key: asset.id,
         href: asset.downloadStatus === 'READY' ? downloadUrl : `/comprobantes#${asset.id}`,
         label: `${labelPrefix}${asset.filename || asset.mimeType}`,

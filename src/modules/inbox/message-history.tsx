@@ -89,6 +89,8 @@ type MessageHistoryProps = {
   onLoadOlder?: () => void;
   chatSearchMatches?: ConversationSearchMatch[];
   chatSearchActiveIndex?: number;
+  onRetryState?: (messageId: string, status: QuotedMessageState['status']) => void;
+  onRetryMediaDownload?: (mediaAssetId: string) => void;
 };
 
 export function MessageHistory({
@@ -101,6 +103,8 @@ export function MessageHistory({
   onLoadOlder,
   chatSearchMatches = [],
   chatSearchActiveIndex = -1,
+  onRetryState,
+  onRetryMediaDownload,
 }: MessageHistoryProps & { currentUserId: string; conversationId: string }) {
   const router = useRouter();
   const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
@@ -193,17 +197,29 @@ export function MessageHistory({
 
   const handleRetry = async (message: QuotedMessageState) => {
     try {
+      onRetryState?.(message.id, 'PENDING');
       const fd = new FormData();
       fd.set('retryMessageId', message.id);
       if (message.body) fd.set('body', message.body);
-      await fetch(`/api/inbox/${conversationId}/messages`, {
+      const response = await fetch(`/api/inbox/${conversationId}/messages`, {
         method: 'POST',
         body: fd,
+        headers: { Accept: 'application/json' },
       });
+      if (!response.ok) {
+        onRetryState?.(message.id, 'FAILED');
+        return;
+      }
       router.refresh();
     } catch {
       // Silently fail — message stays as FAILED
+      onRetryState?.(message.id, 'FAILED');
     }
+  };
+
+  const handleRetryMediaDownload = async (mediaAssetId: string) => {
+    if (!onRetryMediaDownload) return;
+    onRetryMediaDownload(mediaAssetId);
   };
 
   async function handleHide(message: QuotedMessageState, scope: 'me' | 'everyone') {
@@ -386,6 +402,15 @@ export function MessageHistory({
                       </a>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                         {markButton}
+                        {preview.downloadStatus === 'FAILED' ? (
+                          <button
+                            type="button"
+                            className="retry-button"
+                            onClick={() => handleRetryMediaDownload(preview.assetId)}
+                          >
+                            Reintentar descarga
+                          </button>
+                        ) : null}
                         {sizeBadge}
                       </div>
                     </div>

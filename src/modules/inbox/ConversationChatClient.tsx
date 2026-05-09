@@ -112,6 +112,30 @@ export function ConversationChatClient({
     setMessages((prev) => reconcileOptimisticRow(prev, clientId, serverMsg));
   }, []);
 
+  const updateMessageStatus = useCallback((messageId: string, status: QuotedMessageState['status']) => {
+    setMessages((prev) => prev.map((message) => message.id === messageId ? { ...message, status } : message));
+  }, []);
+
+  const retryMediaDownload = useCallback(async (mediaAssetId: string) => {
+    try {
+      await fetch(`/api/media/${mediaAssetId}/retry`, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+      });
+      window.setTimeout(() => {
+        void fetch(`/api/inbox/${conversationId}/messages?limit=20`, { headers: { Accept: 'application/json' } })
+          .then((response) => response.ok ? response.json() : null)
+          .then((data) => {
+            if (!data?.messages) return;
+            setMessages((prev) => mergeRefreshedMessages(prev, data.messages as QuotedMessageState[]));
+          })
+          .catch(() => undefined);
+      }, 1200);
+    } catch {
+      // Silently fail, user can retry again
+    }
+  }, [conversationId]);
+
   const lastMessageId = messages.at(-1)?.id ?? '';
 
   // Keep the message counter in the server-rendered header in sync
@@ -144,6 +168,8 @@ export function ConversationChatClient({
           onLoadOlder={loadOlder}
           chatSearchMatches={chatSearchMatches}
           chatSearchActiveIndex={chatSearchActiveIndex}
+          onRetryState={updateMessageStatus}
+          onRetryMediaDownload={retryMediaDownload}
         />
         <AutoScrollToBottom watchKey={`${conversationId}:${messages.length}:${lastMessageId}`} />
       </section>
