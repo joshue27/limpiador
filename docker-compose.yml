@@ -37,13 +37,14 @@ services:
     working_dir: /app
     command: sh -c "npx tsx src/worker/index.ts"
     env_file: .env
+    environment:
+      CONFIG_DIR: /app/config
+      NODE_OPTIONS: --max-old-space-size=4096
     volumes:
       - media:/app/media
       - exports:/app/exports
       - config:/app/config
       - /var/backups/limpiador/postgres:/var/backups/limpiador/postgres
-    environment:
-      CONFIG_DIR: /app/config
     depends_on:
       postgres:
         condition: service_healthy

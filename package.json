@@ -38,6 +38,7 @@
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.3.1",
+    "yauzl": "^3.3.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -48,6 +49,7 @@
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/yauzl": "^2.10.3",
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.0.3",

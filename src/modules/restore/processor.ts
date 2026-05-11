@@ -1,6 +1,7 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
-import JSZip from 'jszip';
+import yauzl from 'yauzl';
 
 import { getConfig } from '@/lib/config';
 import { prisma } from '@/lib/prisma';
@@ -12,11 +13,6 @@ import {
   markRestoreRunRunning,
   type RestoreCounts,
 } from '@/modules/restore/restore-job';
-
-class RestoreZipLimitError extends Error {}
-
-const MAX_RESTORE_DECOMPRESSED_BYTES = 2048 * 1024 * 1024;
-const MAX_RESTORE_ENTRY_BYTES = 200 * 1024 * 1024;
 
 function cleanPhone(value: string) {
   return value.replace(/[\s().\-+]/g, '').trim();
@@ -37,6 +33,79 @@ type ParsedRestoreMessage = {
   }>;
 };
 
+type ParsedConversation = {
+  contactName: string;
+  phone: string;
+  waId: string;
+  messages: ParsedRestoreMessage[];
+};
+
+/**
+ * Read a single ZIP entry's content as a string via streaming.
+ * Only safe for small entries (text files).
+ */
+function readEntryAsString(zipFile: yauzl.ZipFile, entry: yauzl.Entry): Promise<string> {
+  return new Promise((resolve, reject) => {
+    zipFile.openReadStream(entry, (err, readStream) => {
+      if (err || !readStream) return reject(err || new Error('No stream'));
+      const chunks: Buffer[] = [];
+      readStream.on('data', (chunk: Buffer) => chunks.push(chunk));
+      readStream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      readStream.on('error', reject);
+    });
+  });
+}
+
+/**
+ * Stream a ZIP entry's content directly to a file on disk.
+ */
+function streamEntryToFile(zipFile: yauzl.ZipFile, entry: yauzl.Entry, outputPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    zipFile.openReadStream(entry, (err, readStream) => {
+      if (err || !readStream) return reject(err || new Error('No stream'));
+      const writeStream = createWriteStream(outputPath);
+      readStream.pipe(writeStream);
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+      readStream.on('error', reject);
+    });
+  });
+}
+
+/**
+ * Open a ZIP file and process entries one-by-one using streaming.
+ * Never loads the full archive into memory.
+ */
+function processZipStreaming(
+  archivePath: string,
+  onEntry: (zipFile: yauzl.ZipFile, entry: yauzl.Entry) => Promise<'continue' | 'stop'>,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    yauzl.open(archivePath, { lazyEntries: true, autoClose: true }, (err, zipFile) => {
+      if (err || !zipFile) return reject(err || new Error('Cannot open ZIP'));
+
+      zipFile.on('entry', async (entry: yauzl.Entry) => {
+        try {
+          const action = await onEntry(zipFile, entry);
+          if (action === 'stop') {
+            zipFile.close();
+            resolve();
+          } else {
+            zipFile.readEntry();
+          }
+        } catch (error) {
+          zipFile.close();
+          reject(error);
+        }
+      });
+
+      zipFile.on('end', resolve);
+      zipFile.on('error', reject);
+      zipFile.readEntry();
+    });
+  });
+}
+
 export async function processRestoreRun(input: {
   restoreRunId: string;
   archivePath: string;
@@ -45,8 +114,7 @@ export async function processRestoreRun(input: {
   await markRestoreRunRunning(prisma, input.restoreRunId);
 
   try {
-    const buffer = await readFile(input.archivePath);
-    const result = await restoreArchiveBuffer(buffer, input.userId);
+    const result = await restoreArchiveStreaming(input.archivePath, input.userId);
     await markRestoreRunReady(prisma, input.restoreRunId, result);
     return result;
   } catch (error) {
@@ -57,110 +125,112 @@ export async function processRestoreRun(input: {
   }
 }
 
-export async function restoreArchiveBuffer(buffer: Buffer, userId: string): Promise<RestoreCounts> {
-  const zip = await JSZip.loadAsync(buffer);
-  const restorableEntries = Object.entries(zip.files).filter(([, zipEntry]) => !zipEntry.dir);
-  let extractedBytes = 0;
-  const textContents = new Map<string, string>();
-  const mediaContents = new Map<string, Buffer>();
+async function restoreArchiveStreaming(archivePath: string, userId: string): Promise<RestoreCounts> {
+  const mediaRoot = getConfig().storage.mediaRoot;
+  await mkdir(mediaRoot, { recursive: true });
 
-  for (const [filename, zipEntry] of restorableEntries) {
-    if (!filename.endsWith('.txt') && !filename.includes('_media/')) continue;
-
-    if (filename.endsWith('.txt')) {
-      const content = await zipEntry.async('string');
-      extractedBytes = assertRestoreEntrySize(Buffer.byteLength(content, 'utf8'), extractedBytes);
-      textContents.set(filename, content);
-      continue;
-    }
-
-    const data = await zipEntry.async('nodebuffer');
-    extractedBytes = assertRestoreEntrySize(data.byteLength, extractedBytes);
-    mediaContents.set(filename, data);
-  }
+  // Map of assetId → messageId, built as we process text entries
+  const assetMessageMap = new Map<string, string>();
 
   let conversationsRestored = 0;
   let messagesRestored = 0;
+  let mediaRestored = 0;
 
-  for (const [, content] of textContents) {
-    const parsed = parseConversationText(content);
-    if (!parsed.phone || parsed.messages.length === 0) continue;
+  // Phase 1: process all entries sequentially
+  await processZipStreaming(archivePath, async (zipFile, entry) => {
+    if (entry.fileName.endsWith('.txt')) {
+      // Text file — parse conversation and create DB records
+      const content = await readEntryAsString(zipFile, entry);
+      const parsed = parseConversationText(content);
+      if (!parsed.phone || parsed.messages.length === 0) return 'continue';
 
-    const contact = await prisma.contact.upsert({
-      where: { phone: parsed.phone },
-      create: {
-        waId: parsed.waId || parsed.phone,
-        phone: parsed.phone,
-        displayName: parsed.contactName || null,
-      },
-      update: { displayName: parsed.contactName || undefined },
-    });
-
-    let conversation = await prisma.conversation.findUnique({ where: { contactId: contact.id } });
-    if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: { contactId: contact.id, status: 'UNASSIGNED' },
-      });
-    }
-    conversationsRestored++;
-
-    for (const msg of parsed.messages) {
-      const msgDate = new Date(msg.time);
-      if (Number.isNaN(msgDate.getTime())) continue;
-
-      const existing = await prisma.message.findFirst({
-        where: { conversationId: conversation.id, body: msg.body, createdAt: msgDate },
-      });
-      if (existing) continue;
-
-      const restored = await prisma.message.create({
-        data: {
-          conversationId: conversation.id,
-          contactId: contact.id,
-          direction: msg.direction,
-          type: msg.type === 'TEXT' ? 'TEXT' : 'UNKNOWN',
-          body: msg.body,
-          status: msg.direction === 'INBOUND' ? 'RECEIVED' : 'SENT',
-          createdAt: msgDate,
-          receivedAt: msg.direction === 'INBOUND' ? msgDate : undefined,
-          sentAt: msg.direction === 'OUTBOUND' ? msgDate : undefined,
+      const contact = await prisma.contact.upsert({
+        where: { phone: parsed.phone },
+        create: {
+          waId: parsed.waId || parsed.phone,
+          phone: parsed.phone,
+          displayName: parsed.contactName || null,
         },
+        update: { displayName: parsed.contactName || undefined },
       });
-      messagesRestored++;
 
-      for (const asset of msg.media ?? []) {
+      let conversation = await prisma.conversation.findUnique({ where: { contactId: contact.id } });
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: { contactId: contact.id, status: 'UNASSIGNED' },
+        });
+      }
+      conversationsRestored++;
+
+      for (const msg of parsed.messages) {
+        const msgDate = new Date(msg.time);
+        if (Number.isNaN(msgDate.getTime())) continue;
+
+        const existing = await prisma.message.findFirst({
+          where: { conversationId: conversation.id, body: msg.body, createdAt: msgDate },
+        });
+        if (existing) continue;
+
+        const restored = await prisma.message.create({
+          data: {
+            conversationId: conversation.id,
+            contactId: contact.id,
+            direction: msg.direction,
+            type: msg.type === 'TEXT' ? 'TEXT' : 'UNKNOWN',
+            body: msg.body,
+            status: msg.direction === 'INBOUND' ? 'RECEIVED' : 'SENT',
+            createdAt: msgDate,
+            receivedAt: msg.direction === 'INBOUND' ? msgDate : undefined,
+            sentAt: msg.direction === 'OUTBOUND' ? msgDate : undefined,
+          },
+        });
+        messagesRestored++;
+
+        // Store mapping from asset IDs to this message for media processing
+        for (const asset of msg.media ?? []) {
+          assetMessageMap.set(asset.id, restored.id);
+        }
+      }
+
+      return 'continue';
+    }
+
+    if (entry.fileName.includes('_media/')) {
+      // Media file — stream to disk and create record
+      const mediaFile = entry.fileName.split('/').at(-1) ?? '';
+      const rawAssetId = mediaFile.split('_')[0];
+      if (!rawAssetId) return 'continue';
+      const assetId = rawAssetId.replace(/[^a-zA-Z0-9-]/g, '');
+      if (!assetId) return 'continue';
+
+      const outputPath = path.join(mediaRoot, `restored-${assetId}`);
+      await streamEntryToFile(zipFile, entry, outputPath);
+
+      // Try to find the message ID from the mapping
+      const messageId = assetMessageMap.get(assetId);
+      if (messageId) {
         await prisma.mediaAsset
           .create({
             data: {
-              id: asset.id,
-              messageId: restored.id,
-              waMediaId: `restored-${asset.id}`,
-              mimeType: asset.mime,
-              filename: asset.filename || null,
-              size: asset.size,
-              downloadStatus:
-                asset.status === 'READY' || asset.status === 'PENDING' || asset.status === 'FAILED'
-                  ? asset.status
-                  : 'PENDING',
-              isComprobante: asset.comprobante,
-              storageKey: `restored-${asset.id}`,
+              id: assetId,
+              messageId,
+              waMediaId: `restored-${assetId}`,
+              mimeType: 'application/octet-stream',
+              filename: mediaFile,
+              size: entry.uncompressedSize,
+              downloadStatus: 'READY',
+              isComprobante: false,
+              storageKey: `restored-${assetId}`,
             },
           })
           .catch(() => undefined);
       }
+      mediaRestored++;
+      return 'continue';
     }
-  }
 
-  const mediaRoot = getConfig().storage.mediaRoot;
-  let mediaRestored = 0;
-  await mkdir(mediaRoot, { recursive: true });
-  for (const [zipPath, data] of mediaContents) {
-    const mediaFile = zipPath.split('/').at(-1) ?? '';
-    const assetId = mediaFile.split('_')[0];
-    if (!assetId) continue;
-    await writeFile(path.join(mediaRoot, `restored-${assetId}`), data);
-    mediaRestored++;
-  }
+    return 'continue';
+  });
 
   const counts = { conversationsRestored, messagesRestored, mediaRestored };
   await writeAuditLog({
@@ -220,15 +290,4 @@ function parseConversationText(content: string) {
   }
 
   return { contactName, phone, waId, messages };
-}
-
-function assertRestoreEntrySize(entryBytes: number, currentTotalBytes: number): number {
-  if (entryBytes > MAX_RESTORE_ENTRY_BYTES)
-    throw new RestoreZipLimitError('Un archivo del ZIP excede el tamaño máximo permitido.');
-  const nextTotalBytes = currentTotalBytes + entryBytes;
-  if (nextTotalBytes > MAX_RESTORE_DECOMPRESSED_BYTES)
-    throw new RestoreZipLimitError(
-      'El contenido descomprimido del ZIP excede el tamaño máximo permitido.',
-    );
-  return nextTotalBytes;
 }
