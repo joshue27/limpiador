@@ -130,7 +130,10 @@ async function restoreArchiveStreaming(
   await mkdir(mediaRoot, { recursive: true });
 
   // Map of assetId → media metadata, built as we process text entries
-  const assetMediaMap = new Map<string, { messageId: string; mimeType: string; filename: string }>();
+  const assetMediaMap = new Map<
+    string,
+    { messageId: string; mimeType: string; filename: string }
+  >();
 
   let conversationsRestored = 0;
   let messagesRestored = 0;
@@ -171,12 +174,14 @@ async function restoreArchiveStreaming(
         });
         if (existing) continue;
 
+        const validTypes = ['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT', 'STICKER', 'TEMPLATE', 'UNKNOWN'] as const;
+        const msgType = validTypes.includes(msg.type as typeof validTypes[number]) ? msg.type as typeof validTypes[number] : 'UNKNOWN';
         const restored = await prisma.message.create({
           data: {
             conversationId: conversation.id,
             contactId: contact.id,
             direction: msg.direction,
-            type: msg.type === 'TEXT' ? 'TEXT' : 'UNKNOWN',
+            type: msgType,
             body: msg.body,
             status: msg.direction === 'INBOUND' ? 'RECEIVED' : 'SENT',
             createdAt: msgDate,
@@ -214,8 +219,9 @@ async function restoreArchiveStreaming(
       const mediaInfo = assetMediaMap.get(assetId);
       if (mediaInfo) {
         await prisma.mediaAsset
-          .create({
-            data: {
+          .upsert({
+            where: { id: assetId },
+            create: {
               id: assetId,
               messageId: mediaInfo.messageId,
               waMediaId: `restored-${assetId}`,
@@ -224,6 +230,15 @@ async function restoreArchiveStreaming(
               size: entry.uncompressedSize,
               downloadStatus: 'READY',
               isComprobante: false,
+              storageKey: `restored-${assetId}`,
+            },
+            update: {
+              messageId: mediaInfo.messageId,
+              waMediaId: `restored-${assetId}`,
+              mimeType: mediaInfo.mimeType,
+              filename: mediaInfo.filename,
+              size: entry.uncompressedSize,
+              downloadStatus: 'READY',
               storageKey: `restored-${assetId}`,
             },
           })
