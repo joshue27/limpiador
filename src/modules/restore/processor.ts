@@ -33,13 +33,6 @@ type ParsedRestoreMessage = {
   }>;
 };
 
-type ParsedConversation = {
-  contactName: string;
-  phone: string;
-  waId: string;
-  messages: ParsedRestoreMessage[];
-};
-
 /**
  * Read a single ZIP entry's content as a string via streaming.
  * Only safe for small entries (text files).
@@ -59,7 +52,11 @@ function readEntryAsString(zipFile: yauzl.ZipFile, entry: yauzl.Entry): Promise<
 /**
  * Stream a ZIP entry's content directly to a file on disk.
  */
-function streamEntryToFile(zipFile: yauzl.ZipFile, entry: yauzl.Entry, outputPath: string): Promise<void> {
+function streamEntryToFile(
+  zipFile: yauzl.ZipFile,
+  entry: yauzl.Entry,
+  outputPath: string,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     zipFile.openReadStream(entry, (err, readStream) => {
       if (err || !readStream) return reject(err || new Error('No stream'));
@@ -125,12 +122,15 @@ export async function processRestoreRun(input: {
   }
 }
 
-async function restoreArchiveStreaming(archivePath: string, userId: string): Promise<RestoreCounts> {
+async function restoreArchiveStreaming(
+  archivePath: string,
+  userId: string,
+): Promise<RestoreCounts> {
   const mediaRoot = getConfig().storage.mediaRoot;
   await mkdir(mediaRoot, { recursive: true });
 
-  // Map of assetId → messageId, built as we process text entries
-  const assetMessageMap = new Map<string, string>();
+  // Map of assetId → media metadata, built as we process text entries
+  const assetMediaMap = new Map<string, { messageId: string; mimeType: string; filename: string }>();
 
   let conversationsRestored = 0;
   let messagesRestored = 0;
@@ -188,7 +188,11 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
 
         // Store mapping from asset IDs to this message for media processing
         for (const asset of msg.media ?? []) {
-          assetMessageMap.set(asset.id, restored.id);
+          assetMediaMap.set(asset.id, {
+            messageId: restored.id,
+            mimeType: asset.mime || 'application/octet-stream',
+            filename: asset.filename || asset.id,
+          });
         }
       }
 
@@ -206,17 +210,17 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
       const outputPath = path.join(mediaRoot, `restored-${assetId}`);
       await streamEntryToFile(zipFile, entry, outputPath);
 
-      // Try to find the message ID from the mapping
-      const messageId = assetMessageMap.get(assetId);
-      if (messageId) {
+      // Use stored media metadata from text processing (mime, filename)
+      const mediaInfo = assetMediaMap.get(assetId);
+      if (mediaInfo) {
         await prisma.mediaAsset
           .create({
             data: {
               id: assetId,
-              messageId,
+              messageId: mediaInfo.messageId,
               waMediaId: `restored-${assetId}`,
-              mimeType: 'application/octet-stream',
-              filename: mediaFile,
+              mimeType: mediaInfo.mimeType,
+              filename: mediaInfo.filename,
               size: entry.uncompressedSize,
               downloadStatus: 'READY',
               isComprobante: false,
