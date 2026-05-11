@@ -16,8 +16,8 @@ export const runtime = 'nodejs';
 
 const MAX_RESTORE_ZIP_BYTES = 50 * 1024 * 1024;
 const MAX_RESTORE_ENTRY_COUNT = 500;
-const MAX_RESTORE_DECOMPRESSED_BYTES = 100 * 1024 * 1024;
-const MAX_RESTORE_ENTRY_BYTES = 10 * 1024 * 1024;
+const MAX_RESTORE_DECOMPRESSED_BYTES = 500 * 1024 * 1024;
+const MAX_RESTORE_ENTRY_BYTES = 50 * 1024 * 1024;
 
 export async function POST(request: Request) {
   const session = await getVerifiedSession();

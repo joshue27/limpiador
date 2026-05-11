@@ -10,8 +10,8 @@ import { markRestoreRunFailed, markRestoreRunReady, markRestoreRunRunning, type 
 
 class RestoreZipLimitError extends Error {}
 
-const MAX_RESTORE_DECOMPRESSED_BYTES = 100 * 1024 * 1024;
-const MAX_RESTORE_ENTRY_BYTES = 10 * 1024 * 1024;
+const MAX_RESTORE_DECOMPRESSED_BYTES = 500 * 1024 * 1024;
+const MAX_RESTORE_ENTRY_BYTES = 50 * 1024 * 1024;
 
 function cleanPhone(value: string) {
   return value.replace(/[\s().\-+]/g, '').trim();
