@@ -1,7 +1,6 @@
 import './globals.css';
 import { readFile } from 'node:fs/promises';
 
-import { getConfig } from '@/lib/config';
 import { settingsFilePath } from '@/lib/settings-files';
 
 export const metadata = {
@@ -20,12 +19,23 @@ async function getAccentColor(): Promise<string | null> {
   }
 }
 
+async function getTimezone(): Promise<string> {
+  // Read from timezone.json first, then env var, then default
+  try {
+    const data = await readFile(settingsFilePath('timezone.json'), 'utf-8');
+    const parsed = JSON.parse(data) as { timezone?: string };
+    if (parsed.timezone?.trim()) return parsed.timezone.trim();
+  } catch {
+    // file not found, fall through
+  }
+  return process.env.TIMEZONE || 'America/Guatemala';
+}
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const accentColor = await getAccentColor();
-  const timezone = getConfig().timezone;
+  const [accentColor, timezone] = await Promise.all([getAccentColor(), getTimezone()]);
   return (
     <html lang="es">
-      <body style={accentColor ? { '--accent': accentColor } as React.CSSProperties : undefined}>
+      <body style={accentColor ? ({ '--accent': accentColor } as React.CSSProperties) : undefined}>
         <script dangerouslySetInnerHTML={{ __html: `window.__TIMEZONE__="${timezone}"` }} />
         {children}
       </body>
