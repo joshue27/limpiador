@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { formatDateTimeFull } from '@/lib/date-format';
 import { prisma } from '@/lib/prisma';
 import { AUDIT_ACTION_OPTIONS } from '@/modules/audit/actions';
 import { auditWhereFromParams, type AuditFilterParams } from '@/modules/audit/filters';
@@ -110,7 +111,7 @@ export default async function AuditPage({ searchParams }: { searchParams?: Promi
             <tbody>
               {logs.map((log) => (
                 <tr key={log.id}>
-                  <td style={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}>{new Date(log.createdAt).toLocaleString('es-GT', { timeZone: 'America/Guatemala', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                  <td style={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}>{formatDateTimeFull(log.createdAt)}</td>
                   <td style={{ fontSize: '0.75rem' }}>{log.action}</td>
                   <td style={{ fontSize: '0.75rem' }}>{log.user?.email ?? 'Sistema'}</td>
                   <td style={{ fontSize: '0.75rem' }}>{log.entityType ?? '-'}{log.entityId ? <><br /><small>{log.entityId.slice(0, 20)}</small></> : null}</td>

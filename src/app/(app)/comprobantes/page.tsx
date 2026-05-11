@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/date-format';
 import { prisma } from '@/lib/prisma';
 import { AssetPopover } from '@/modules/comprobantes/AssetPopover';
 import { toggleArchivado } from '@/modules/comprobantes/actions';
@@ -104,7 +105,7 @@ export default async function ComprobantesPage({ searchParams }: { searchParams?
                 <tr key={asset.id} id={asset.id}>
                   <td>{asset.message.contact.displayName ?? asset.message.contact.phone}</td>
                   <td>{asset.filename ?? asset.waMediaId}<br /><small>{asset.mimeType} · {asset.size ?? '-'} bytes</small></td>
-                  <td>{downloadStatusLabels[asset.downloadStatus] ?? asset.downloadStatus}{asset.downloadError ? `: ${asset.downloadError}` : ''}<br /><small style={{ fontSize: '0.6rem', color: '#9ca3af' }}>{new Date(asset.createdAt).toLocaleString('es-GT', { timeZone: 'America/Guatemala', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</small></td>
+                  <td>{downloadStatusLabels[asset.downloadStatus] ?? asset.downloadStatus}{asset.downloadError ? `: ${asset.downloadError}` : ''}<br /><small style={{ fontSize: '0.6rem', color: '#9ca3af' }}>{formatDateTime(asset.createdAt)}</small></td>
                   <td>
                     <form action={toggleArchivado} className="mini-form">
                       <input type="hidden" name="id" value={asset.id} />
@@ -112,7 +113,7 @@ export default async function ComprobantesPage({ searchParams }: { searchParams?
                       {asset.isComprobante ? <input name="confirmation" placeholder="Escriba DESMARCAR" aria-label="Confirmación para desmarcar" /> : null}
                       <button type="submit">{asset.isComprobante ? 'Desarchivar' : 'Archivar'}</button>
                     </form>
-                    {asset.markedBy ? <small>Marcado por {asset.markedBy.email}{asset.markedAt ? ` · ${asset.markedAt.toLocaleString('es-GT', { timeZone: 'America/Guatemala', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}</small> : <small>No marcado</small>}
+                    {asset.markedBy ? <small>Marcado por {asset.markedBy.email}{asset.markedAt ? ` · ${formatDateTime(asset.markedAt)}` : ''}</small> : <small>No marcado</small>}
                   </td>
                   <td>{asset.storageKey && asset.downloadStatus === 'READY' ? <a href={`/api/media/${asset.id}/download`} style={{ fontSize: '0.7rem', padding: '2px 8px', background: 'var(--accent, #075e54)', color: '#fff', border: '1px solid var(--accent, #064e3b)', borderRadius: 2, textDecoration: 'none', fontWeight: 650 }}>Descargar</a> : <span className="status-muted">No disponible</span>}</td>
                   <td>

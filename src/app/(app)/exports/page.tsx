@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/date-format';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/modules/auth/guards';
 import { ExportsAutoRefresh } from '@/modules/exports/ExportsAutoRefresh';
@@ -101,7 +102,7 @@ export default async function ExportsPage({
                     </td>
                     <td>
                       {counts?.total ? <small>{counts.total} archivos</small> : null}
-                      {run.completedAt ? <><br /><small style={{ fontSize: '0.6rem', color: '#9ca3af' }}>{new Date(run.completedAt).toLocaleString('es-GT', { timeZone: 'America/Guatemala', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small></> : null}
+                      {run.completedAt ? <><br /><small style={{ fontSize: '0.6rem', color: '#9ca3af' }}>{formatDateTime(run.completedAt)}</small></> : null}
                     </td>
                     <td>{run.createdBy.email}</td>
                     <td>

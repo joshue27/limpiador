@@ -33,6 +33,7 @@ const envSchema = z.object({
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional().default(''),
   PRIVATE_MEDIA_ROOT: z.string().min(1),
   PRIVATE_EXPORT_ROOT: z.string().min(1),
+  TIMEZONE: z.string().min(1).default('America/Guatemala'),
   PRIVATE_BACKUP_ROOT: z.string().min(1).default('/var/backups/limpiador/postgres'),
   WHATSAPP_WINDOW_BYPASS: z
     .enum(['true', 'false', '1', '0'])
@@ -120,6 +121,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
       backupRoot: env.PRIVATE_BACKUP_ROOT,
       mediaMaxBytes: env.MEDIA_MAX_BYTES,
     },
+    timezone: env.TIMEZONE,
     whatsappWindowBypass: env.WHATSAPP_WINDOW_BYPASS,
   } as const;
 }

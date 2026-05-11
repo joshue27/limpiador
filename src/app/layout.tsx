@@ -1,6 +1,7 @@
 import './globals.css';
 import { readFile } from 'node:fs/promises';
 
+import { getConfig } from '@/lib/config';
 import { settingsFilePath } from '@/lib/settings-files';
 
 export const metadata = {
@@ -21,9 +22,11 @@ async function getAccentColor(): Promise<string | null> {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const accentColor = await getAccentColor();
+  const timezone = getConfig().timezone;
   return (
     <html lang="es">
       <body style={accentColor ? { '--accent': accentColor } as React.CSSProperties : undefined}>
+        <script dangerouslySetInnerHTML={{ __html: `window.__TIMEZONE__="${timezone}"` }} />
         {children}
       </body>
     </html>

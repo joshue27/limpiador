@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { formatDateTimeClient } from '@/lib/client-date-format';
 import { Modal } from '@/components/Modal';
 
 type StorageBrowserFileEntry = {
@@ -395,7 +396,7 @@ export function StorageBrowser() {
                     ) : null}
                   </div>
 
-                          {!root.available ? (
+                  {!root.available ? (
                     <p className="text-muted">
                       Esta ruta no está disponible desde el contenedor web.
                     </p>
@@ -430,9 +431,7 @@ export function StorageBrowser() {
                               </td>
                               <td>{formatSize(file.size)}</td>
                               <td>
-                                {new Date(file.modifiedAt).toLocaleString('es-GT', {
-                                  timeZone: 'America/Guatemala',
-                                })}
+                                {formatDateTimeClient(file.modifiedAt)}
                               </td>
                               <td>
                                 {(() => {

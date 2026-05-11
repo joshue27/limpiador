@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Modal } from '@/components/Modal';
+import { formatDateTimeClient } from '@/lib/client-date-format';
 import { isSafeInlineMediaPreviewMime } from '@/modules/media/mime';
 
 type AssetData = {
@@ -39,7 +40,7 @@ export function AssetPopover({ asset }: { asset: AssetData }) {
           <div>
             <strong>{asset.filename || 'Sin nombre'}</strong>
             <br />
-            <small>{new Date(asset.createdAt).toLocaleString('es-GT', { timeZone: 'America/Guatemala' })}</small>
+            <small>{formatDateTimeClient(asset.createdAt)}</small>
             <br />
             <small>{asset.mimeType} · {asset.size ? `${(asset.size / 1024).toFixed(0)} KB` : '?'}</small>
           </div>

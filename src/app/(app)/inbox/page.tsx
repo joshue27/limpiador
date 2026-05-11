@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 
+import { formatDateTime } from '@/lib/date-format';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/modules/auth/guards';
 import { canClaimConversation, canTransferConversation, canViewConversation, conversationListWhereForSession } from '@/modules/inbox/access';
@@ -56,13 +57,7 @@ function labelFor(labels: Record<string, string>, value: string) {
 
 function formatShortDate(date: Date | null) {
   if (!date) return 'Sin fecha';
-  return new Intl.DateTimeFormat('es', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'America/Guatemala',
-  }).format(date);
+  return formatDateTime(date);
 }
 
 function previewMessage(message?: { body: string | null; caption: string | null; type: string }) {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatDateTimeClient } from '@/lib/client-date-format';
 import { Modal } from '@/components/Modal';
 import { ComprobanteToggleButton } from '@/modules/inbox/ComprobanteToggleButton';
 import { getConversationMessageAttachmentPreviews } from '@/modules/inbox/message-attachments';
@@ -39,13 +40,7 @@ function labelFor(labels: Record<string, string>, value: string) {
 
 function formatShortDate(date: Date | string | null) {
   if (!date) return 'Sin fecha';
-  return new Intl.DateTimeFormat('es', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'America/Guatemala',
-  }).format(new Date(date));
+  return formatDateTimeClient(date);
 }
 
 export type QuotedMessageState = {
