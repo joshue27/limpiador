@@ -11,12 +11,20 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(32),
   SESSION_COOKIE_NAME: z.string().min(1).default('limpiador_session'),
-  SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
+  SESSION_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60 * 24 * 7),
   LOGIN_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(900),
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
   API_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
-  MEDIA_MAX_BYTES: z.coerce.number().int().positive().default(25 * 1024 * 1024),
+  MEDIA_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(25 * 1024 * 1024),
   WHATSAPP_GRAPH_API_VERSION: z.string().min(1).default('v21.0'),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(''),
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional().default(''),
@@ -25,6 +33,7 @@ const envSchema = z.object({
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional().default(''),
   PRIVATE_MEDIA_ROOT: z.string().min(1),
   PRIVATE_EXPORT_ROOT: z.string().min(1),
+  PRIVATE_BACKUP_ROOT: z.string().min(1).default('/var/backups/limpiador/postgres'),
   WHATSAPP_WINDOW_BYPASS: z
     .enum(['true', 'false', '1', '0'])
     .default('false')
@@ -108,6 +117,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
     storage: {
       mediaRoot: env.PRIVATE_MEDIA_ROOT,
       exportRoot: env.PRIVATE_EXPORT_ROOT,
+      backupRoot: env.PRIVATE_BACKUP_ROOT,
       mediaMaxBytes: env.MEDIA_MAX_BYTES,
     },
     whatsappWindowBypass: env.WHATSAPP_WINDOW_BYPASS,

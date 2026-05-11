@@ -29,18 +29,21 @@ export function storageBrowserRootPath(kind: StorageBrowserKind) {
     return getConfig().storage.exportRoot;
   }
 
-  return process.env.DB_BACKUP_BROWSER_ROOT?.trim()
-    || process.env.BACKUP_DIR?.trim()
-    || '/var/backups/limpiador/postgres';
+  return (
+    getConfig().storage.backupRoot ||
+    process.env.DB_BACKUP_BROWSER_ROOT?.trim() ||
+    process.env.BACKUP_DIR?.trim() ||
+    '/var/backups/limpiador/postgres'
+  );
 }
 
 export function storageBrowserRootLabel(kind: StorageBrowserKind) {
-  return kind === 'exports'
-    ? 'ZIPs de exportación y restauración'
-    : 'Backups SQL de base de datos';
+  return kind === 'exports' ? 'ZIPs de exportación y restauración' : 'Backups SQL de base de datos';
 }
 
-export async function listStorageBrowserRoot(kind: StorageBrowserKind): Promise<StorageBrowserRootListing> {
+export async function listStorageBrowserRoot(
+  kind: StorageBrowserKind,
+): Promise<StorageBrowserRootListing> {
   const rootPath = storageBrowserRootPath(kind);
   const label = storageBrowserRootLabel(kind);
 
@@ -70,14 +73,17 @@ export async function listStorageBrowserRoot(kind: StorageBrowserKind): Promise<
   }
 }
 
-async function walkFiles(rootPath: string, currentPath: string): Promise<StorageBrowserFileEntry[]> {
+async function walkFiles(
+  rootPath: string,
+  currentPath: string,
+): Promise<StorageBrowserFileEntry[]> {
   const entries = await readdir(currentPath, { withFileTypes: true });
   const files: StorageBrowserFileEntry[] = [];
 
   for (const entry of entries) {
     const entryPath = path.join(currentPath, entry.name);
     if (entry.isDirectory()) {
-      files.push(...await walkFiles(rootPath, entryPath));
+      files.push(...(await walkFiles(rootPath, entryPath)));
       continue;
     }
 
