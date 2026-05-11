@@ -127,7 +127,11 @@ export function StorageBrowser() {
       } | null;
 
       if (!response.ok || !payload?.ok) {
-        setRestoreState({ absolutePath, phase: 'error', message: payload?.error || 'Error al iniciar' });
+        setRestoreState({
+          absolutePath,
+          phase: 'error',
+          message: payload?.error || 'Error al iniciar',
+        });
         return;
       }
 
@@ -138,10 +142,14 @@ export function StorageBrowser() {
       const poll = async () => {
         try {
           const res = await fetch(`/api/exports/restore/${runId}`, { cache: 'no-store' });
-          const data = await res.json().catch(() => null) as {
+          const data = (await res.json().catch(() => null)) as {
             status?: string;
             progress?: number;
-            counts?: { conversationsRestored: number; messagesRestored: number; mediaRestored: number } | null;
+            counts?: {
+              conversationsRestored: number;
+              messagesRestored: number;
+              mediaRestored: number;
+            } | null;
             error?: string | null;
           } | null;
 
@@ -151,7 +159,11 @@ export function StorageBrowser() {
           }
 
           if (data.status === 'FAILED') {
-            setRestoreState({ absolutePath, phase: 'error', message: data.error || 'Error en la restauración' });
+            setRestoreState({
+              absolutePath,
+              phase: 'error',
+              message: data.error || 'Error en la restauración',
+            });
             return;
           }
 
@@ -167,10 +179,19 @@ export function StorageBrowser() {
           }
 
           // Still running — poll again
-          setRestoreState({ absolutePath, phase: 'running', progress: data.progress ?? 0, message: 'Restaurando…' });
+          setRestoreState({
+            absolutePath,
+            phase: 'running',
+            progress: data.progress ?? 0,
+            message: 'Restaurando…',
+          });
           setTimeout(poll, 2_000);
         } catch {
-          setRestoreState({ absolutePath, phase: 'error', message: 'Error de conexión al consultar estado' });
+          setRestoreState({
+            absolutePath,
+            phase: 'error',
+            message: 'Error de conexión al consultar estado',
+          });
         }
       };
 
@@ -187,24 +208,65 @@ export function StorageBrowser() {
 
     if (phase === 'confirm') {
       return (
-        <div className="notice" style={{ background: '#fef3c7', border: '1px solid #f59e0b', padding: '8px 12px', borderRadius: 4, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <small style={{ color: '#92400e' }}>¿Restaurar desde este archivo? Los datos existentes podrían duplicarse.</small>
-          <button type="button" className="compact-action-button" onClick={() => void startRestore(restoreState.absolutePath)} style={{ fontSize: '0.7rem', background: '#7c3aed', borderColor: '#6d28d9' }}>Sí, restaurar</button>
-          <button type="button" className="button-secondary" onClick={() => setRestoreState(null)} style={{ fontSize: '0.7rem' }}>Cancelar</button>
+        <div
+          className="notice"
+          style={{
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            padding: '8px 12px',
+            borderRadius: 4,
+            marginBottom: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <small style={{ color: '#92400e' }}>
+            ¿Restaurar desde este archivo? Los datos existentes podrían duplicarse.
+          </small>
+          <button
+            type="button"
+            className="compact-action-button"
+            onClick={() => void startRestore(restoreState.absolutePath)}
+            style={{ fontSize: '0.7rem', background: '#7c3aed', borderColor: '#6d28d9' }}
+          >
+            Sí, restaurar
+          </button>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => setRestoreState(null)}
+            style={{ fontSize: '0.7rem' }}
+          >
+            Cancelar
+          </button>
         </div>
       );
     }
 
     if (phase === 'starting' || phase === 'running') {
       return (
-        <div className="notice" style={{ background: '#eff6ff', border: '1px solid #3b82f6', padding: '8px 12px', borderRadius: 4, marginBottom: 8 }}>
+        <div
+          className="notice"
+          style={{
+            background: '#eff6ff',
+            border: '1px solid #3b82f6',
+            padding: '8px 12px',
+            borderRadius: 4,
+            marginBottom: 8,
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <small style={{ color: '#1e40af' }}>{message}</small>
             {progress != null && <small style={{ color: '#6b7280' }}>({progress}%)</small>}
           </div>
           {progress != null && (
             <div className="campaign-progress-bar" style={{ marginTop: 4, height: 6 }}>
-              <div className="campaign-progress-fill" style={{ width: `${progress}%`, background: '#3b82f6' }} />
+              <div
+                className="campaign-progress-fill"
+                style={{ width: `${progress}%`, background: '#3b82f6' }}
+              />
             </div>
           )}
         </div>
@@ -213,18 +275,56 @@ export function StorageBrowser() {
 
     if (phase === 'done') {
       return (
-        <div className="notice" style={{ background: '#f0fdf4', border: '1px solid #22c55e', padding: '8px 12px', borderRadius: 4, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div
+          className="notice"
+          style={{
+            background: '#f0fdf4',
+            border: '1px solid #22c55e',
+            padding: '8px 12px',
+            borderRadius: 4,
+            marginBottom: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
           <small style={{ color: '#166534' }}>✅ {message}</small>
-          <button type="button" className="button-secondary" onClick={() => setRestoreState(null)} style={{ fontSize: '0.7rem' }}>Cerrar</button>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => setRestoreState(null)}
+            style={{ fontSize: '0.7rem' }}
+          >
+            Cerrar
+          </button>
         </div>
       );
     }
 
     if (phase === 'error') {
       return (
-        <div className="notice notice-error" style={{ padding: '8px 12px', borderRadius: 4, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div
+          className="notice notice-error"
+          style={{
+            padding: '8px 12px',
+            borderRadius: 4,
+            marginBottom: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
           <small>❌ {message}</small>
-          <button type="button" className="button-secondary" onClick={() => setRestoreState(null)} style={{ fontSize: '0.7rem' }}>Cerrar</button>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => setRestoreState(null)}
+            style={{ fontSize: '0.7rem' }}
+          >
+            Cerrar
+          </button>
         </div>
       );
     }
@@ -266,6 +366,7 @@ export function StorageBrowser() {
           {loading ? <p>Cargando archivos…</p> : null}
           {error ? <p className="notice notice-error">{error}</p> : null}
 
+          {restoreBanner()}
           {!loading && !error
             ? roots.map((root) => (
                 <section key={root.kind} className="card stack" style={{ gap: 8 }}>
@@ -294,8 +395,7 @@ export function StorageBrowser() {
                     ) : null}
                   </div>
 
-                  {restoreBanner()}
-                  {!root.available ? (
+                          {!root.available ? (
                     <p className="text-muted">
                       Esta ruta no está disponible desde el contenedor web.
                     </p>
@@ -362,15 +462,26 @@ export function StorageBrowser() {
                                         <button
                                           type="button"
                                           className="compact-action-button"
-                                          disabled={restoreState?.absolutePath === file.absolutePath && (restoreState.phase === 'starting' || restoreState.phase === 'running')}
-                                          onClick={() => setRestoreState({ absolutePath: file.absolutePath, phase: 'confirm' })}
+                                          disabled={
+                                            restoreState?.absolutePath === file.absolutePath &&
+                                            (restoreState.phase === 'starting' ||
+                                              restoreState.phase === 'running')
+                                          }
+                                          onClick={() =>
+                                            setRestoreState({
+                                              absolutePath: file.absolutePath,
+                                              phase: 'confirm',
+                                            })
+                                          }
                                           style={{ background: '#7c3aed', borderColor: '#6d28d9' }}
                                         >
-                                          {restoreState?.absolutePath === file.absolutePath && restoreState.phase === 'running'
+                                          {restoreState?.absolutePath === file.absolutePath &&
+                                          restoreState.phase === 'running'
                                             ? `${restoreState.progress ?? 0}%`
-                                            : restoreState?.absolutePath === file.absolutePath && restoreState.phase === 'starting'
-                                            ? '…'
-                                            : 'Restaurar'}
+                                            : restoreState?.absolutePath === file.absolutePath &&
+                                                restoreState.phase === 'starting'
+                                              ? '…'
+                                              : 'Restaurar'}
                                         </button>
                                       )}
                                       {!isConfirmingDelete ? (
