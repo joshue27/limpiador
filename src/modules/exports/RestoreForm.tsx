@@ -154,8 +154,14 @@ export function RestoreForm() {
         setRestoreRunId(null);
         setRestoreStatus(null);
       }
-    } catch {
-      setError('Error de conexión');
+    } catch (err) {
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        setError('Error de conexión. Verifique que el archivo no supere los 50 MB y que el servidor esté accesible.');
+      } else if (err instanceof SyntaxError) {
+        setError('El servidor devolvió una respuesta inesperada. Puede ser que el archivo exceda el tamaño permitido por el proxy.');
+      } else {
+        setError('Error de conexión');
+      }
       setRestoreRunId(null);
       setRestoreStatus(null);
     } finally {
