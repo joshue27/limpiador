@@ -14,10 +14,10 @@ import type { RestoreZipGuardOptions } from '@/modules/restore/restore-zip-guard
 
 export const runtime = 'nodejs';
 
-const MAX_RESTORE_ZIP_BYTES = 50 * 1024 * 1024;
+const MAX_RESTORE_ZIP_BYTES = 200 * 1024 * 1024;
 const MAX_RESTORE_ENTRY_COUNT = 500;
-const MAX_RESTORE_DECOMPRESSED_BYTES = 500 * 1024 * 1024;
-const MAX_RESTORE_ENTRY_BYTES = 50 * 1024 * 1024;
+const MAX_RESTORE_DECOMPRESSED_BYTES = 2048 * 1024 * 1024;
+const MAX_RESTORE_ENTRY_BYTES = 200 * 1024 * 1024;
 
 export async function POST(request: Request) {
   const session = await getVerifiedSession();
@@ -32,7 +32,10 @@ export async function POST(request: Request) {
   }
 
   if (zipFile.size > MAX_RESTORE_ZIP_BYTES) {
-    return NextResponse.json({ error: 'El ZIP excede el tamaño máximo permitido de 50 MB.' }, { status: 413 });
+    return NextResponse.json(
+      { error: 'El ZIP excede el tamaño máximo permitido de 50 MB.' },
+      { status: 413 },
+    );
   }
 
   try {
@@ -45,7 +48,10 @@ export async function POST(request: Request) {
     }));
     const planValidation = validateRestoreZipEntryPlan(entryPlan, restoreZipGuardOptions());
     if (!planValidation.ok) {
-      return NextResponse.json({ error: planValidation.error }, { status: planValidation.status, headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json(
+        { error: planValidation.error },
+        { status: planValidation.status, headers: { 'Cache-Control': 'no-store' } },
+      );
     }
 
     const uploadId = randomUUID();
@@ -67,12 +73,21 @@ export async function POST(request: Request) {
     } catch (error) {
       await markRestoreRunFailed(prisma, restoreRun.id, error);
       await rm(archivePath, { force: true }).catch(() => undefined);
-      return NextResponse.json({ error: 'No se pudo encolar la restauración' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json(
+        { error: 'No se pudo encolar la restauración' },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      );
     }
 
-    return NextResponse.json({ ok: true, restoreRunId: restoreRun.id, status: restoreRun.status }, { status: 202, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { ok: true, restoreRunId: restoreRun.id, status: restoreRun.status },
+      { status: 202, headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error) {
-    return NextResponse.json({ error: 'Error al preparar el ZIP para restauración' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { error: 'Error al preparar el ZIP para restauración' },
+      { status: 500, headers: { 'Cache-Control': 'no-store' } },
+    );
   }
 }
 
@@ -85,7 +100,9 @@ function restoreZipGuardOptions(): RestoreZipGuardOptions {
 }
 
 function getZipEntryUncompressedSize(zipEntry: JSZip.JSZipObject): number | undefined {
-  const withInternalData = zipEntry as JSZip.JSZipObject & { _data?: { uncompressedSize?: unknown } };
+  const withInternalData = zipEntry as JSZip.JSZipObject & {
+    _data?: { uncompressedSize?: unknown };
+  };
   const size = withInternalData._data?.uncompressedSize;
   return typeof size === 'number' && Number.isFinite(size) && size >= 0 ? size : undefined;
 }

@@ -6,12 +6,17 @@ import { getConfig } from '@/lib/config';
 import { prisma } from '@/lib/prisma';
 import { AUDIT_ACTIONS } from '@/modules/audit/actions';
 import { writeAuditLog } from '@/modules/audit/audit';
-import { markRestoreRunFailed, markRestoreRunReady, markRestoreRunRunning, type RestoreCounts } from '@/modules/restore/restore-job';
+import {
+  markRestoreRunFailed,
+  markRestoreRunReady,
+  markRestoreRunRunning,
+  type RestoreCounts,
+} from '@/modules/restore/restore-job';
 
 class RestoreZipLimitError extends Error {}
 
-const MAX_RESTORE_DECOMPRESSED_BYTES = 500 * 1024 * 1024;
-const MAX_RESTORE_ENTRY_BYTES = 50 * 1024 * 1024;
+const MAX_RESTORE_DECOMPRESSED_BYTES = 2048 * 1024 * 1024;
+const MAX_RESTORE_ENTRY_BYTES = 200 * 1024 * 1024;
 
 function cleanPhone(value: string) {
   return value.replace(/[\s().\-+]/g, '').trim();
@@ -22,10 +27,21 @@ type ParsedRestoreMessage = {
   direction: 'INBOUND' | 'OUTBOUND';
   type: string;
   body: string;
-  media?: Array<{ id: string; filename: string; mime: string; status: string; comprobante: boolean; size: number }>;
+  media?: Array<{
+    id: string;
+    filename: string;
+    mime: string;
+    status: string;
+    comprobante: boolean;
+    size: number;
+  }>;
 };
 
-export async function processRestoreRun(input: { restoreRunId: string; archivePath: string; userId: string }): Promise<RestoreCounts> {
+export async function processRestoreRun(input: {
+  restoreRunId: string;
+  archivePath: string;
+  userId: string;
+}): Promise<RestoreCounts> {
   await markRestoreRunRunning(prisma, input.restoreRunId);
 
   try {
@@ -72,13 +88,19 @@ export async function restoreArchiveBuffer(buffer: Buffer, userId: string): Prom
 
     const contact = await prisma.contact.upsert({
       where: { phone: parsed.phone },
-      create: { waId: parsed.waId || parsed.phone, phone: parsed.phone, displayName: parsed.contactName || null },
+      create: {
+        waId: parsed.waId || parsed.phone,
+        phone: parsed.phone,
+        displayName: parsed.contactName || null,
+      },
       update: { displayName: parsed.contactName || undefined },
     });
 
     let conversation = await prisma.conversation.findUnique({ where: { contactId: contact.id } });
     if (!conversation) {
-      conversation = await prisma.conversation.create({ data: { contactId: contact.id, status: 'UNASSIGNED' } });
+      conversation = await prisma.conversation.create({
+        data: { contactId: contact.id, status: 'UNASSIGNED' },
+      });
     }
     conversationsRestored++;
 
@@ -107,19 +129,24 @@ export async function restoreArchiveBuffer(buffer: Buffer, userId: string): Prom
       messagesRestored++;
 
       for (const asset of msg.media ?? []) {
-        await prisma.mediaAsset.create({
-          data: {
-            id: asset.id,
-            messageId: restored.id,
-            waMediaId: `restored-${asset.id}`,
-            mimeType: asset.mime,
-            filename: asset.filename || null,
-            size: asset.size,
-            downloadStatus: asset.status === 'READY' || asset.status === 'PENDING' || asset.status === 'FAILED' ? asset.status : 'PENDING',
-            isComprobante: asset.comprobante,
-            storageKey: `restored-${asset.id}`,
-          },
-        }).catch(() => undefined);
+        await prisma.mediaAsset
+          .create({
+            data: {
+              id: asset.id,
+              messageId: restored.id,
+              waMediaId: `restored-${asset.id}`,
+              mimeType: asset.mime,
+              filename: asset.filename || null,
+              size: asset.size,
+              downloadStatus:
+                asset.status === 'READY' || asset.status === 'PENDING' || asset.status === 'FAILED'
+                  ? asset.status
+                  : 'PENDING',
+              isComprobante: asset.comprobante,
+              storageKey: `restored-${asset.id}`,
+            },
+          })
+          .catch(() => undefined);
       }
     }
   }
@@ -162,7 +189,9 @@ function parseConversationText(content: string) {
       if (inHeader) continue;
     }
 
-    const mediaMatch = line.match(/^MEDIA:\s*id=(.+?)\|filename=(.*?)\|mime=(.*?)\|status=(.*?)\|comprobante=(\d)\|size=(\d+)/);
+    const mediaMatch = line.match(
+      /^MEDIA:\s*id=(.+?)\|filename=(.*?)\|mime=(.*?)\|status=(.*?)\|comprobante=(\d)\|size=(\d+)/,
+    );
     if (mediaMatch) {
       const lastMsg = messages.at(-1);
       if (lastMsg) {
@@ -194,8 +223,12 @@ function parseConversationText(content: string) {
 }
 
 function assertRestoreEntrySize(entryBytes: number, currentTotalBytes: number): number {
-  if (entryBytes > MAX_RESTORE_ENTRY_BYTES) throw new RestoreZipLimitError('Un archivo del ZIP excede el tamaño máximo permitido.');
+  if (entryBytes > MAX_RESTORE_ENTRY_BYTES)
+    throw new RestoreZipLimitError('Un archivo del ZIP excede el tamaño máximo permitido.');
   const nextTotalBytes = currentTotalBytes + entryBytes;
-  if (nextTotalBytes > MAX_RESTORE_DECOMPRESSED_BYTES) throw new RestoreZipLimitError('El contenido descomprimido del ZIP excede el tamaño máximo permitido.');
+  if (nextTotalBytes > MAX_RESTORE_DECOMPRESSED_BYTES)
+    throw new RestoreZipLimitError(
+      'El contenido descomprimido del ZIP excede el tamaño máximo permitido.',
+    );
   return nextTotalBytes;
 }
