@@ -35,6 +35,8 @@ export function StorageBrowser() {
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
+  const [restoringPath, setRestoringPath] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   async function loadRoots() {
     const response = await fetch('/api/settings/storage-browser', { cache: 'no-store' });
@@ -96,6 +98,32 @@ export function StorageBrowser() {
     }
   }
 
+  async function handleRestore(absolutePath: string) {
+    setRestoringPath(absolutePath);
+    setRestoreError(null);
+
+    try {
+      const response = await fetch('/api/exports/restore/local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: absolutePath }),
+      });
+      const payload = await response.json().catch(() => null) as { ok?: boolean; error?: string; restoreRunId?: string } | null;
+
+      if (!response.ok || !payload?.ok) {
+        setRestoreError(payload?.error || 'No se pudo iniciar la restauración.');
+        return;
+      }
+
+      setRestoreError(null);
+      alert(`Restauración encolada (ID: ${payload.restoreRunId ?? '—'}). Podés ver el progreso en Exportaciones.`);
+    } catch {
+      setRestoreError('Error de conexión al iniciar la restauración.');
+    } finally {
+      setRestoringPath(null);
+    }
+  }
+
   return (
     <>
       <button type="button" className="compact-action-button" onClick={openBrowser} style={{ background: '#2563eb', borderColor: '#1d4ed8' }}>
@@ -122,6 +150,9 @@ export function StorageBrowser() {
                 {root.note ? <div style={{ fontSize: '0.75rem', color: root.available ? '#6b7280' : '#dc2626', marginTop: 4 }}>{root.note}</div> : null}
               </div>
 
+              {restoreError && (
+                <p className="notice notice-error" style={{ margin: 0 }}>{restoreError}</p>
+              )}
               {!root.available ? (
                 <p className="text-muted">Esta ruta no está disponible desde el contenedor web.</p>
               ) : root.files.length === 0 ? (
@@ -164,6 +195,17 @@ export function StorageBrowser() {
                               <button type="button" className="button-secondary" onClick={() => copyPath(file.absolutePath)}>
                                 {copiedPath === file.absolutePath ? 'Copiado' : 'Copiar ruta'}
                               </button>
+                              {root.kind === 'exports' && (
+                                <button
+                                  type="button"
+                                  className="compact-action-button"
+                                  disabled={restoringPath === file.absolutePath}
+                                  onClick={() => void handleRestore(file.absolutePath)}
+                                  style={{ background: '#7c3aed', borderColor: '#6d28d9' }}
+                                >
+                                  {restoringPath === file.absolutePath ? 'Restaurando…' : 'Restaurar'}
+                                </button>
+                              )}
                               {!isConfirmingDelete ? (
                                 <button
                                   type="button"

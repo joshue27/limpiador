@@ -37,7 +37,11 @@ export function formatRestoreStatusMessage(status: RestoreRunStatusPayload) {
   }
 
   if (status.status === 'READY') {
-    const counts = status.counts ?? { conversationsRestored: 0, messagesRestored: 0, mediaRestored: 0 };
+    const counts = status.counts ?? {
+      conversationsRestored: 0,
+      messagesRestored: 0,
+      mediaRestored: 0,
+    };
     return `${counts.conversationsRestored} conversaciones, ${counts.messagesRestored} mensajes y ${counts.mediaRestored} archivos restaurados.`;
   }
 
@@ -48,7 +52,10 @@ export function formatRestoreStatusMessage(status: RestoreRunStatusPayload) {
   return `Restauración en cola (${status.progress}%).`;
 }
 
-function createPendingRestoreStatus(restoreRunId: string, status: RestoreRunStatus = 'PENDING'): RestoreRunStatusPayload {
+function createPendingRestoreStatus(
+  restoreRunId: string,
+  status: RestoreRunStatus = 'PENDING',
+): RestoreRunStatusPayload {
   return {
     id: restoreRunId,
     status,
@@ -81,12 +88,18 @@ export function RestoreForm() {
     const pollStatus = async () => {
       try {
         const response = await fetch(`/api/exports/restore/${restoreRunId}`, { cache: 'no-store' });
-        const data = await response.json().catch(() => null) as RestoreRunStatusPayload | { error?: string } | null;
+        const data = (await response.json().catch(() => null)) as
+          | RestoreRunStatusPayload
+          | { error?: string }
+          | null;
 
         if (cancelled) return;
 
         if (!response.ok || !data || !('status' in data)) {
-          setError((data && 'error' in data && data.error) || 'No pudimos consultar el estado de la restauración.');
+          setError(
+            (data && 'error' in data && data.error) ||
+              'No pudimos consultar el estado de la restauración.',
+          );
           setLoading(false);
           setRestoreRunId(null);
           return;
@@ -138,7 +151,7 @@ export function RestoreForm() {
       const fd = new FormData();
       fd.append('zip', file);
       const res = await fetch('/api/exports/restore', { method: 'POST', body: fd });
-      const data = await res.json() as RestoreStartResponse;
+      const data = (await res.json()) as RestoreStartResponse;
       if (!res.ok || !data.ok) {
         setError(data.error || 'Error al restaurar');
         setRestoreRunId(null);
@@ -156,9 +169,13 @@ export function RestoreForm() {
       }
     } catch (err) {
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        setError('Error de conexión. Verifique que el archivo no supere los 50 MB y que el servidor esté accesible.');
+        setError(
+          'Error de conexión. Verifique que el archivo no supere los 50 MB y que el servidor esté accesible.',
+        );
       } else if (err instanceof SyntaxError) {
-        setError('El servidor devolvió una respuesta inesperada. Puede ser que el archivo exceda el tamaño permitido por el proxy.');
+        setError(
+          'El servidor devolvió una respuesta inesperada. Puede ser que el archivo exceda el tamaño permitido por el proxy.',
+        );
       } else {
         setError('Error de conexión');
       }
@@ -173,7 +190,9 @@ export function RestoreForm() {
 
   return (
     <div className="stack" style={{ gap: 8 }}>
-      <p className="text-muted">Suba un ZIP de conversaciones exportado previamente para restaurarlas.</p>
+      <p className="text-muted">
+        Suba un ZIP de conversaciones exportado previamente para restaurarlas.
+      </p>
       <input
         ref={inputRef}
         type="file"
