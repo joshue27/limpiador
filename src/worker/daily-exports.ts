@@ -408,7 +408,7 @@ export async function runDailyExports(options: { trigger?: ExportTrigger } = {})
         generateConversationZip(mediaRoot, exportRoot, {
           window: plan.window,
           zipBasename: `${plan.uploadPrefix || 'daily'}-conversaciones`,
-          includeMediaFiles: plan.trigger === 'manual',
+          includeMediaFiles: true,
         }),
     },
     {
