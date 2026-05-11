@@ -35,8 +35,8 @@ export async function createRestoreRun(input: {
 }): Promise<{ id: string; status: RestoreRunStatus }> {
   const id = randomUUID();
   const rows = await input.prisma.$queryRaw(Prisma.sql`
-    INSERT INTO restore_runs (id, created_by, archive_key, original_filename, status, progress)
-    VALUES (${id}, ${input.userId}, ${input.archiveKey}, ${input.originalFilename}, 'PENDING', 0)
+    INSERT INTO restore_runs (id, created_by, archive_key, original_filename, status, progress, updated_at)
+    VALUES (${id}, ${input.userId}, ${input.archiveKey}, ${input.originalFilename}, 'PENDING', 0, now())
     RETURNING id
   `) as Array<{ id: string }>;
 
