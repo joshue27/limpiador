@@ -59,6 +59,16 @@ function tryReadWhatsappJson(): WhatsappJson | null {
   }
 }
 
+function tryReadTimezoneFile(): string | null {
+  try {
+    const raw = readFileSync(settingsFilePath('timezone.json'), 'utf-8');
+    const parsed = JSON.parse(raw) as { timezone?: string };
+    return parsed.timezone?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function decryptIfNeeded(value: string): string {
   if (!value) return value;
   if (isEncrypted(value)) {
@@ -121,7 +131,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
       backupRoot: env.PRIVATE_BACKUP_ROOT,
       mediaMaxBytes: env.MEDIA_MAX_BYTES,
     },
-    timezone: env.TIMEZONE,
+    timezone: tryReadTimezoneFile() || env.TIMEZONE,
     whatsappWindowBypass: env.WHATSAPP_WINDOW_BYPASS,
   } as const;
 }

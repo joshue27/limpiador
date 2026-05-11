@@ -10,6 +10,7 @@ import { BrandingUploader } from '@/modules/settings/BrandingUploader';
 import { SmtpSettings } from '@/modules/settings/SmtpSettings';
 import { DriveSettings } from '@/modules/settings/DriveSettings';
 import { RetentionSettings } from '@/modules/settings/RetentionSettings';
+import { TimezoneSelector } from '@/modules/settings/TimezoneSelector';
 import { WhatsappSettings } from '@/modules/settings/WhatsappSettings';
 
 export default async function SettingsPage({
@@ -103,6 +104,13 @@ export default async function SettingsPage({
             <h4>Notificaciones</h4>
             <SilenceToggle />
           </div>
+        </article>
+        <article className="card stack settings-section">
+          <div className="settings-section-heading">
+            <h3>Zona horaria</h3>
+            <p>Configure la zona horaria para la visualización de fechas y horas en toda la aplicación.</p>
+          </div>
+          <TimezoneSelector />
         </article>
         {session.role === 'ADMIN' && (
           <>
