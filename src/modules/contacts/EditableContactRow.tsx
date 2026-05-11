@@ -80,7 +80,7 @@ export function EditableContactRow({ contact, activeTags, tagNames, operators, i
       const res = await fetch('/api/contacts/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [contact.id] }),
+        body: JSON.stringify({ id: contact.id }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => null) as { error?: string } | null;
