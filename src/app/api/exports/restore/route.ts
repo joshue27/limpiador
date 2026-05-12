@@ -20,6 +20,7 @@ const MAX_RESTORE_DECOMPRESSED_BYTES = 2048 * 1024 * 1024;
 const MAX_RESTORE_ENTRY_BYTES = 200 * 1024 * 1024;
 
 export async function POST(request: Request) {
+  try {
   const session = await getVerifiedSession();
   if (!session || session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
 
   if (zipFile.size > MAX_RESTORE_ZIP_BYTES) {
     return NextResponse.json(
-      { error: 'El ZIP excede el tamaño máximo permitido de 50 MB.' },
+      { error: `El ZIP excede el tama\u00f1o m\u00e1ximo permitido de ${MAX_RESTORE_ZIP_BYTES / 1024 / 1024} MB.` },
       { status: 413 },
     );
   }
@@ -84,10 +85,12 @@ export async function POST(request: Request) {
       { status: 202, headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Error al preparar el ZIP para restauración' },
-      { status: 500, headers: { 'Cache-Control': 'no-store' } },
-    );
+    console.error('[restore] Unexpected error:', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Error al preparar el ZIP para restauración' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
+  }
+  } catch (error) {
+    console.error('[restore] Top-level error:', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Error interno al procesar la subida' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }
 
