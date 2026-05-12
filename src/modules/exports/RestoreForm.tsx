@@ -27,6 +27,14 @@ type RestoreStartResponse = {
   status?: RestoreRunStatus;
 };
 
+type RestoreUploadInitResponse = {
+  ok?: boolean;
+  error?: string;
+  uploadId?: string;
+};
+
+const RESTORE_UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024;
+
 export function isRestoreTerminalStatus(status: RestoreRunStatus) {
   return status === 'READY' || status === 'FAILED';
 }
@@ -148,24 +156,68 @@ export function RestoreForm() {
     setResult(null);
     let backgroundRestoreQueued = false;
     try {
-      const res = await fetch('/api/exports/restore', {
+      const chunkCount = Math.max(1, Math.ceil(file.size / RESTORE_UPLOAD_CHUNK_BYTES));
+      const initRes = await fetch('/api/exports/restore/upload/init', {
         method: 'POST',
-        headers: {
-          'Content-Type': file.type || 'application/zip',
-          'X-Restore-Filename': encodeURIComponent(file.name),
-        },
-        body: file,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileSize: file.size,
+          chunkCount,
+        }),
       });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        setError(`${res.status}: ${text.slice(0, 200) || 'Error del servidor'}`);
+      const initPayload = (await initRes
+        .json()
+        .catch(() => null)) as RestoreUploadInitResponse | null;
+      if (!initRes.ok || !initPayload?.ok || !initPayload.uploadId) {
+        setError(initPayload?.error || `No se pudo iniciar la subida (${initRes.status}).`);
         setRestoreRunId(null);
         setRestoreStatus(null);
         return;
       }
 
-      const data = (await res.json()) as RestoreStartResponse;
+      for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
+        const start = chunkIndex * RESTORE_UPLOAD_CHUNK_BYTES;
+        const end = Math.min(file.size, start + RESTORE_UPLOAD_CHUNK_BYTES);
+        const chunk = file.slice(start, end);
+        const uploadRes = await fetch(`/api/exports/restore/upload/${initPayload.uploadId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-Chunk-Index': String(chunkIndex),
+          },
+          body: chunk,
+        });
+
+        if (!uploadRes.ok) {
+          const uploadPayload = (await uploadRes.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          setError(uploadPayload?.error || `Falló la subida del chunk ${chunkIndex + 1}.`);
+          setRestoreRunId(null);
+          setRestoreStatus(null);
+          return;
+        }
+
+        const percent = Math.min(99, Math.round(((chunkIndex + 1) / chunkCount) * 100));
+        setResult(`Subiendo ZIP… ${percent}%`);
+      }
+
+      const res = await fetch('/api/exports/restore/upload/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uploadId: initPayload.uploadId }),
+      });
+
+      const data = (await res.json().catch(() => null)) as RestoreStartResponse | null;
+      if (!res.ok || !data) {
+        setError(data?.error || `No se pudo completar la restauración (${res.status}).`);
+        setRestoreRunId(null);
+        setRestoreStatus(null);
+        return;
+      }
+
       if (!data.ok) {
         setError(data.error || 'Error al restaurar');
         setRestoreRunId(null);
