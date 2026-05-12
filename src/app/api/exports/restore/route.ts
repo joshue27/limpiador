@@ -21,76 +21,95 @@ const MAX_RESTORE_ENTRY_BYTES = 200 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
-  const session = await getVerifiedSession();
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
-  }
+    const session = await getVerifiedSession();
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    }
 
-  const formData = await request.formData();
-  const zipFile = formData.get('zip') as File | null;
-  if (!zipFile || zipFile.size === 0) {
-    return NextResponse.json({ error: 'Archivo ZIP requerido' }, { status: 400 });
-  }
-
-  if (zipFile.size > MAX_RESTORE_ZIP_BYTES) {
-    return NextResponse.json(
-      { error: `El ZIP excede el tama\u00f1o m\u00e1ximo permitido de ${MAX_RESTORE_ZIP_BYTES / 1024 / 1024} MB.` },
-      { status: 413 },
-    );
-  }
-
-  try {
-    const buffer = Buffer.from(await zipFile.arrayBuffer());
-    const zip = await JSZip.loadAsync(buffer);
-    const restorableEntries = Object.entries(zip.files).filter(([, zipEntry]) => !zipEntry.dir);
-    const entryPlan = restorableEntries.map(([filename, zipEntry]) => ({
-      name: filename,
-      size: getZipEntryUncompressedSize(zipEntry),
-    }));
-    const planValidation = validateRestoreZipEntryPlan(entryPlan, restoreZipGuardOptions());
-    if (!planValidation.ok) {
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (error) {
+      console.error('[restore] Failed to parse upload form-data:', error);
+      const uploadError = describeRestoreUploadError(error);
       return NextResponse.json(
-        { error: planValidation.error },
-        { status: planValidation.status, headers: { 'Cache-Control': 'no-store' } },
+        { error: uploadError.message },
+        { status: uploadError.status, headers: { 'Cache-Control': 'no-store' } },
       );
     }
 
-    const uploadId = randomUUID();
-    const uploadDir = path.join(getConfig().storage.exportRoot, 'restore-uploads');
-    const archivePath = path.join(uploadDir, `${uploadId}.zip`);
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(archivePath, buffer, { flag: 'wx' });
+    const zipFile = formData.get('zip') as File | null;
+    if (!zipFile || zipFile.size === 0) {
+      return NextResponse.json({ error: 'Archivo ZIP requerido' }, { status: 400 });
+    }
 
-    const archiveKey = `restore-uploads/${uploadId}.zip`;
-    const restoreRun = await createRestoreRun({
-      prisma,
-      userId: session.userId,
-      archiveKey,
-      originalFilename: zipFile.name || 'restore.zip',
-    });
+    if (zipFile.size > MAX_RESTORE_ZIP_BYTES) {
+      return NextResponse.json(
+        {
+          error: `El ZIP excede el tama\u00f1o m\u00e1ximo permitido de ${MAX_RESTORE_ZIP_BYTES / 1024 / 1024} MB.`,
+        },
+        { status: 413 },
+      );
+    }
 
     try {
-      await enqueueRestoreProcessing(restoreRun.id, archivePath, session.userId);
-    } catch (error) {
-      await markRestoreRunFailed(prisma, restoreRun.id, error);
-      await rm(archivePath, { force: true }).catch(() => undefined);
+      const buffer = Buffer.from(await zipFile.arrayBuffer());
+      const zip = await JSZip.loadAsync(buffer);
+      const restorableEntries = Object.entries(zip.files).filter(([, zipEntry]) => !zipEntry.dir);
+      const entryPlan = restorableEntries.map(([filename, zipEntry]) => ({
+        name: filename,
+        size: getZipEntryUncompressedSize(zipEntry),
+      }));
+      const planValidation = validateRestoreZipEntryPlan(entryPlan, restoreZipGuardOptions());
+      if (!planValidation.ok) {
+        return NextResponse.json(
+          { error: planValidation.error },
+          { status: planValidation.status, headers: { 'Cache-Control': 'no-store' } },
+        );
+      }
+
+      const uploadId = randomUUID();
+      const uploadDir = path.join(getConfig().storage.exportRoot, 'restore-uploads');
+      const archivePath = path.join(uploadDir, `${uploadId}.zip`);
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(archivePath, buffer, { flag: 'wx' });
+
+      const archiveKey = `restore-uploads/${uploadId}.zip`;
+      const restoreRun = await createRestoreRun({
+        prisma,
+        userId: session.userId,
+        archiveKey,
+        originalFilename: zipFile.name || 'restore.zip',
+      });
+
+      try {
+        await enqueueRestoreProcessing(restoreRun.id, archivePath, session.userId);
+      } catch (error) {
+        await markRestoreRunFailed(prisma, restoreRun.id, error);
+        await rm(archivePath, { force: true }).catch(() => undefined);
+        return NextResponse.json(
+          { error: 'No se pudo encolar la restauración' },
+          { status: 503, headers: { 'Cache-Control': 'no-store' } },
+        );
+      }
+
       return NextResponse.json(
-        { error: 'No se pudo encolar la restauración' },
-        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+        { ok: true, restoreRunId: restoreRun.id, status: restoreRun.status },
+        { status: 202, headers: { 'Cache-Control': 'no-store' } },
+      );
+    } catch (error) {
+      console.error('[restore] Unexpected error:', error instanceof Error ? error.message : error);
+      return NextResponse.json(
+        { error: 'Error al preparar el ZIP para restauración' },
+        { status: 500, headers: { 'Cache-Control': 'no-store' } },
       );
     }
-
-    return NextResponse.json(
-      { ok: true, restoreRunId: restoreRun.id, status: restoreRun.status },
-      { status: 202, headers: { 'Cache-Control': 'no-store' } },
-    );
-  } catch (error) {
-    console.error('[restore] Unexpected error:', error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: 'Error al preparar el ZIP para restauración' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
-  }
   } catch (error) {
     console.error('[restore] Top-level error:', error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: 'Error interno al procesar la subida' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { error: 'Error interno al procesar la subida' },
+      { status: 500, headers: { 'Cache-Control': 'no-store' } },
+    );
   }
 }
 
@@ -99,6 +118,41 @@ function restoreZipGuardOptions(): RestoreZipGuardOptions {
     maxEntries: MAX_RESTORE_ENTRY_COUNT,
     maxTotalBytes: MAX_RESTORE_DECOMPRESSED_BYTES,
     maxEntryBytes: MAX_RESTORE_ENTRY_BYTES,
+  };
+}
+
+function describeRestoreUploadError(error: unknown): { status: number; message: string } {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    normalizedMessage.includes('content-length') ||
+    normalizedMessage.includes('too large') ||
+    normalizedMessage.includes('size limit')
+  ) {
+    return {
+      status: 413,
+      message:
+        'No se pudo leer la subida ZIP. Puede que el archivo exceda el límite del servidor o que la petición se haya cortado antes de terminar.',
+    };
+  }
+
+  if (
+    normalizedMessage.includes('formdata') ||
+    normalizedMessage.includes('multipart') ||
+    normalizedMessage.includes('request body') ||
+    normalizedMessage.includes('request aborted') ||
+    normalizedMessage.includes('body')
+  ) {
+    return {
+      status: 400,
+      message: 'No se pudo leer la subida ZIP. Verificá el archivo e intentá nuevamente.',
+    };
+  }
+
+  return {
+    status: 400,
+    message: 'No se pudo leer la subida ZIP. Verificá el archivo e intentá nuevamente.',
   };
 }
 

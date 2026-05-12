@@ -3,16 +3,39 @@ import { safeRedirect } from '@/lib/safe-redirect';
 
 import { verifySessionToken } from '@/modules/auth/session';
 
-const PUBLIC_PATHS = ['/login', '/verify', '/forgot', '/privacy', '/api/health', '/api/auth/login', '/api/auth/verify', '/api/auth/forgot', '/api/auth/reset', '/api/dev/bootstrap-admin', '/api/webhooks/whatsapp', '/brand-logo.png', '/login-bg.jpg', '/favicon.ico', '/notification-message.mp3', '/notification-transfer.mp3', '/plantilla_contactos.csv'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/verify',
+  '/forgot',
+  '/privacy',
+  '/api/health',
+  '/api/auth/login',
+  '/api/auth/verify',
+  '/api/auth/forgot',
+  '/api/auth/reset',
+  '/api/dev/bootstrap-admin',
+  '/api/webhooks/whatsapp',
+  '/brand-logo.png',
+  '/login-bg.jpg',
+  '/favicon.ico',
+  '/notification-message.mp3',
+  '/notification-transfer.mp3',
+  '/plantilla_contactos.csv',
+];
+const AUTH_IN_ROUTE_PATHS = ['/api/exports/restore'];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
+function isAuthHandledInRoute(pathname: string) {
+  return AUTH_IN_ROUTE_PATHS.includes(pathname);
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (isPublicPath(pathname)) {
+  if (isPublicPath(pathname) || isAuthHandledInRoute(pathname)) {
     return NextResponse.next();
   }
 
