@@ -212,6 +212,7 @@ CREATE TABLE "message_templates" (
     "header" TEXT,
     "footer" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "available" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
