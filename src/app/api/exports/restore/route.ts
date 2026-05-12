@@ -2,15 +2,12 @@ import { NextResponse } from 'next/server';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import JSZip from 'jszip';
 
 import { getConfig } from '@/lib/config';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedSession } from '@/modules/auth/guards';
 import { enqueueRestoreProcessing } from '@/modules/queue/queues';
 import { createRestoreRun, markRestoreRunFailed } from '@/modules/restore/restore-job';
-import { validateRestoreZipEntryPlan } from '@/modules/restore/restore-zip-guard';
-import type { RestoreZipGuardOptions } from '@/modules/restore/restore-zip-guard';
 
 export const runtime = 'nodejs';
 
@@ -20,9 +17,6 @@ type RestoreUploadPayload = {
 };
 
 const MAX_RESTORE_ZIP_BYTES = 200 * 1024 * 1024;
-const MAX_RESTORE_ENTRY_COUNT = 500;
-const MAX_RESTORE_DECOMPRESSED_BYTES = 2048 * 1024 * 1024;
-const MAX_RESTORE_ENTRY_BYTES = 200 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
@@ -55,25 +49,11 @@ export async function POST(request: Request) {
         {
           error: `El ZIP excede el tama\u00f1o m\u00e1ximo permitido de ${MAX_RESTORE_ZIP_BYTES / 1024 / 1024} MB.`,
         },
-        { status: 413 },
+        { status: 413, headers: { 'Cache-Control': 'no-store' } },
       );
     }
 
     try {
-      const zip = await JSZip.loadAsync(upload.buffer);
-      const restorableEntries = Object.entries(zip.files).filter(([, zipEntry]) => !zipEntry.dir);
-      const entryPlan = restorableEntries.map(([filename, zipEntry]) => ({
-        name: filename,
-        size: getZipEntryUncompressedSize(zipEntry),
-      }));
-      const planValidation = validateRestoreZipEntryPlan(entryPlan, restoreZipGuardOptions());
-      if (!planValidation.ok) {
-        return NextResponse.json(
-          { error: planValidation.error },
-          { status: planValidation.status, headers: { 'Cache-Control': 'no-store' } },
-        );
-      }
-
       const uploadId = randomUUID();
       const uploadDir = path.join(getConfig().storage.exportRoot, 'restore-uploads');
       const archivePath = path.join(uploadDir, `${uploadId}.zip`);
@@ -178,14 +158,6 @@ function decodeRestoreFileName(fileNameHeader: string | null): string | null {
   }
 }
 
-function restoreZipGuardOptions(): RestoreZipGuardOptions {
-  return {
-    maxEntries: MAX_RESTORE_ENTRY_COUNT,
-    maxTotalBytes: MAX_RESTORE_DECOMPRESSED_BYTES,
-    maxEntryBytes: MAX_RESTORE_ENTRY_BYTES,
-  };
-}
-
 function describeRestoreUploadError(error: unknown): { status: number; message: string } {
   const message = error instanceof Error ? error.message : String(error);
   const normalizedMessage = message.toLowerCase();
@@ -219,12 +191,4 @@ function describeRestoreUploadError(error: unknown): { status: number; message: 
     status: 400,
     message: 'No se pudo leer la subida ZIP. Verificá el archivo e intentá nuevamente.',
   };
-}
-
-function getZipEntryUncompressedSize(zipEntry: JSZip.JSZipObject): number | undefined {
-  const withInternalData = zipEntry as JSZip.JSZipObject & {
-    _data?: { uncompressedSize?: unknown };
-  };
-  const size = withInternalData._data?.uncompressedSize;
-  return typeof size === 'number' && Number.isFinite(size) && size >= 0 ? size : undefined;
 }

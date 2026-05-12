@@ -84,21 +84,19 @@ describe('restore upload route', () => {
     );
   });
 
-  it('rejects oversized restore plans before database writes or queue enqueue', async () => {
+  it('rejects empty raw uploads before database writes or queue enqueue', async () => {
     const { POST } = await import('@/app/api/exports/restore/route');
-    const zip = new JSZip();
-    for (let index = 0; index < 501; index += 1) zip.file(`chat-${index}.txt`, 'x');
-    const file = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'too-many.zip', {
-      type: 'application/zip',
-    });
-    const formData = new FormData();
-    formData.set('zip', file);
 
     const response = await POST(
-      new Request('http://localhost/api/exports/restore', { method: 'POST', body: formData }),
+      new Request('http://localhost/api/exports/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/zip' },
+        body: new Uint8Array(),
+      }),
     );
 
-    expect(response.status).toBe(413);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: 'Archivo ZIP requerido' });
     expect(mocks.createRestoreRun).not.toHaveBeenCalled();
     expect(mocks.enqueueRestoreProcessing).not.toHaveBeenCalled();
   });
