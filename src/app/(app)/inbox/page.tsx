@@ -192,6 +192,8 @@ export default async function InboxPage({
     chatNoticeType?: 'success' | 'error';
     chatSearch?: string;
     chatMatch?: string;
+    transferred?: string;
+    reason?: string;
   }>;
 }) {
   const session = await requirePermission('inbox');
@@ -357,6 +359,7 @@ export default async function InboxPage({
     claimed: claimedCount,
   });
   const chatNotice = typeof params?.chatNotice === 'string' ? params.chatNotice : null;
+  const transferReason = typeof params?.transferred === 'string' && typeof params?.reason === 'string' ? params.reason : null;
   const chatNoticeType = params?.chatNoticeType === 'error' ? 'error' : 'success';
   const requestedChatMatch = Number.parseInt(
     typeof params?.chatMatch === 'string' ? params.chatMatch : '0',
@@ -655,6 +658,12 @@ export default async function InboxPage({
                         {selected.unreadCount} sin leer
                       </span>
                     </div>
+                    {transferReason && (selected.status === 'DEPARTMENT_QUEUE' || selected.status === 'CLAIMED') && (
+                      <div style={{ fontSize: '0.8rem', color: '#6b7280', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                        <span title="Motivo de transferencia">📋</span>
+                        <span>Motivo: {transferReason}</span>
+                      </div>
+                    )}
                   </header>
                   <section
                     className="conversation-actions conversation-actions-compact"

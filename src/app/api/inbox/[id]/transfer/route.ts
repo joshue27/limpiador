@@ -35,7 +35,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
   if (!contentType.includes('application/json')) {
-    return NextResponse.redirect(safeRedirect(request, `/inbox?conversation=${id}&transferred=1`), { status: 303 });
+  const reasonParam = typeof body?.reason === 'string' && body.reason.trim() ? `&reason=${encodeURIComponent(body.reason.trim())}` : '';
+    return NextResponse.redirect(safeRedirect(request, `/inbox?conversation=${id}&transferred=1${reasonParam}`), { status: 303 });
   }
   return NextResponse.json({ ok: true });
 }
