@@ -314,6 +314,7 @@ model MessageTemplate {
   header    String?
   footer    String?
   status    String   @default("PENDING")
+  available Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

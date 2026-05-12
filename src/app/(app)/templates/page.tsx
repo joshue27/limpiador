@@ -73,7 +73,7 @@ export default async function TemplatesPage({
           {templates.length ? <table>
             <thead><tr><th>Nombre</th><th>Idioma</th><th>Categoría</th><th>Cuerpo</th><th>Estado Meta</th><th>Acciones</th></tr></thead>
             <tbody>
-              {templates.map((template: { id: string; name: string; language: string; category: string; body: string; status: string }) => (
+              {templates.map((template: { id: string; name: string; language: string; category: string; body: string; status: string; available: boolean }) => (
                 <tr key={template.id}>
                   <td><strong>{template.name}</strong></td>
                   <td>{template.language}</td>
@@ -86,7 +86,7 @@ export default async function TemplatesPage({
                     {template.status === 'REJECTED' ? <small className="status-muted"><br />Corrija y vuelva a crear</small> : null}
                   </td>
                   <td>
-                    <TemplateActions templateId={template.id} templateName={template.name} />
+                    <TemplateActions templateId={template.id} templateName={template.name} available={template.available} />
                   </td>
                 </tr>
               ))}

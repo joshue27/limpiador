@@ -35,7 +35,7 @@ export default async function CampaignsPage({
   const currentPage = Math.max(1, Number(params.page) || 1);
 
   const approvedTemplates = await prisma.messageTemplate.findMany({
-    where: { status: 'APPROVED' },
+    where: { status: 'APPROVED', available: true },
     select: { name: true, language: true, body: true },
     orderBy: { name: 'asc' },
   });
