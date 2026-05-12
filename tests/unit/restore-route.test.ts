@@ -41,13 +41,19 @@ describe('restore upload route', () => {
     mocks.enqueueRestoreProcessing.mockResolvedValue({ id: 'job-1' });
   });
 
-  it('persists a guarded archive, creates a restore run, and enqueues background processing', async () => {
+  it('persists a raw zip upload, creates a restore run, and enqueues background processing', async () => {
     const { POST } = await import('@/app/api/exports/restore/route');
-    const formData = new FormData();
-    formData.set('zip', await createRestoreZipFile('backup.zip'));
+    const file = await createRestoreZipFile('backup.zip');
 
     const response = await POST(
-      new Request('http://localhost/api/exports/restore', { method: 'POST', body: formData }),
+      new Request('http://localhost/api/exports/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/zip',
+          'X-Restore-Filename': encodeURIComponent(file.name),
+        },
+        body: await file.arrayBuffer(),
+      }),
     );
 
     expect(response.status).toBe(202);
@@ -58,6 +64,24 @@ describe('restore upload route', () => {
     });
     expect(mocks.createRestoreRun).toHaveBeenCalledOnce();
     expect(mocks.enqueueRestoreProcessing).toHaveBeenCalledOnce();
+    expect(mocks.createRestoreRun).toHaveBeenCalledWith(
+      expect.objectContaining({ originalFilename: 'backup.zip' }),
+    );
+  });
+
+  it('still accepts multipart zip uploads for compatibility', async () => {
+    const { POST } = await import('@/app/api/exports/restore/route');
+    const formData = new FormData();
+    formData.set('zip', await createRestoreZipFile('backup-multipart.zip'));
+
+    const response = await POST(
+      new Request('http://localhost/api/exports/restore', { method: 'POST', body: formData }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(mocks.createRestoreRun).toHaveBeenCalledWith(
+      expect.objectContaining({ originalFilename: 'backup-multipart.zip' }),
+    );
   });
 
   it('rejects oversized restore plans before database writes or queue enqueue', async () => {
@@ -83,6 +107,7 @@ describe('restore upload route', () => {
     const { POST } = await import('@/app/api/exports/restore/route');
 
     const response = await POST({
+      headers: { get: vi.fn().mockReturnValue('multipart/form-data; boundary=test') },
       formData: vi.fn().mockRejectedValue(new TypeError('Failed to parse body as FormData')),
     } as unknown as Request);
 
@@ -98,6 +123,7 @@ describe('restore upload route', () => {
     const { POST } = await import('@/app/api/exports/restore/route');
 
     const response = await POST({
+      headers: { get: vi.fn().mockReturnValue('multipart/form-data; boundary=test') },
       formData: vi
         .fn()
         .mockRejectedValue(new TypeError('Request aborted while parsing multipart body')),

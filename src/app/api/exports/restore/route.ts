@@ -14,6 +14,11 @@ import type { RestoreZipGuardOptions } from '@/modules/restore/restore-zip-guard
 
 export const runtime = 'nodejs';
 
+type RestoreUploadPayload = {
+  buffer: Buffer;
+  fileName: string;
+};
+
 const MAX_RESTORE_ZIP_BYTES = 200 * 1024 * 1024;
 const MAX_RESTORE_ENTRY_COUNT = 500;
 const MAX_RESTORE_DECOMPRESSED_BYTES = 2048 * 1024 * 1024;
@@ -26,11 +31,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
 
-    let formData: FormData;
+    let upload: RestoreUploadPayload;
     try {
-      formData = await request.formData();
+      upload = await readRestoreUpload(request);
     } catch (error) {
-      console.error('[restore] Failed to parse upload form-data:', error);
+      if (isRestoreUploadInputError(error)) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: error.status, headers: { 'Cache-Control': 'no-store' } },
+        );
+      }
+
+      console.error('[restore] Failed to read upload body:', error);
       const uploadError = describeRestoreUploadError(error);
       return NextResponse.json(
         { error: uploadError.message },
@@ -38,12 +50,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const zipFile = formData.get('zip') as File | null;
-    if (!zipFile || zipFile.size === 0) {
-      return NextResponse.json({ error: 'Archivo ZIP requerido' }, { status: 400 });
-    }
-
-    if (zipFile.size > MAX_RESTORE_ZIP_BYTES) {
+    if (upload.buffer.length > MAX_RESTORE_ZIP_BYTES) {
       return NextResponse.json(
         {
           error: `El ZIP excede el tama\u00f1o m\u00e1ximo permitido de ${MAX_RESTORE_ZIP_BYTES / 1024 / 1024} MB.`,
@@ -53,8 +60,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      const buffer = Buffer.from(await zipFile.arrayBuffer());
-      const zip = await JSZip.loadAsync(buffer);
+      const zip = await JSZip.loadAsync(upload.buffer);
       const restorableEntries = Object.entries(zip.files).filter(([, zipEntry]) => !zipEntry.dir);
       const entryPlan = restorableEntries.map(([filename, zipEntry]) => ({
         name: filename,
@@ -72,14 +78,14 @@ export async function POST(request: Request) {
       const uploadDir = path.join(getConfig().storage.exportRoot, 'restore-uploads');
       const archivePath = path.join(uploadDir, `${uploadId}.zip`);
       await mkdir(uploadDir, { recursive: true });
-      await writeFile(archivePath, buffer, { flag: 'wx' });
+      await writeFile(archivePath, upload.buffer, { flag: 'wx' });
 
       const archiveKey = `restore-uploads/${uploadId}.zip`;
       const restoreRun = await createRestoreRun({
         prisma,
         userId: session.userId,
         archiveKey,
-        originalFilename: zipFile.name || 'restore.zip',
+        originalFilename: upload.fileName,
       });
 
       try {
@@ -110,6 +116,65 @@ export async function POST(request: Request) {
       { error: 'Error interno al procesar la subida' },
       { status: 500, headers: { 'Cache-Control': 'no-store' } },
     );
+  }
+}
+
+function createRestoreUploadInputError(status: number, message: string) {
+  const error = new Error(message) as Error & {
+    code: 'RESTORE_UPLOAD_INPUT_ERROR';
+    status: number;
+  };
+  error.code = 'RESTORE_UPLOAD_INPUT_ERROR';
+  error.status = status;
+  return error;
+}
+
+function isRestoreUploadInputError(
+  error: unknown,
+): error is Error & { code: 'RESTORE_UPLOAD_INPUT_ERROR'; status: number } {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    'status' in error &&
+    error.code === 'RESTORE_UPLOAD_INPUT_ERROR' &&
+    typeof error.status === 'number'
+  );
+}
+
+async function readRestoreUpload(request: Request): Promise<RestoreUploadPayload> {
+  const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await request.formData();
+    const zipFile = formData.get('zip');
+    if (!(zipFile instanceof File) || zipFile.size === 0) {
+      throw createRestoreUploadInputError(400, 'Archivo ZIP requerido');
+    }
+
+    return {
+      buffer: Buffer.from(await zipFile.arrayBuffer()),
+      fileName: zipFile.name || 'restore.zip',
+    };
+  }
+
+  const buffer = Buffer.from(await request.arrayBuffer());
+  if (buffer.length === 0) {
+    throw createRestoreUploadInputError(400, 'Archivo ZIP requerido');
+  }
+
+  return {
+    buffer,
+    fileName: decodeRestoreFileName(request.headers.get('x-restore-filename')) || 'restore.zip',
+  };
+}
+
+function decodeRestoreFileName(fileNameHeader: string | null): string | null {
+  if (!fileNameHeader?.trim()) return null;
+
+  try {
+    return decodeURIComponent(fileNameHeader).trim() || null;
+  } catch {
+    return fileNameHeader.trim() || null;
   }
 }
 

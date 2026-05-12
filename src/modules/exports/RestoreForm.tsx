@@ -148,9 +148,14 @@ export function RestoreForm() {
     setResult(null);
     let backgroundRestoreQueued = false;
     try {
-      const fd = new FormData();
-      fd.append('zip', file);
-      const res = await fetch('/api/exports/restore', { method: 'POST', body: fd });
+      const res = await fetch('/api/exports/restore', {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type || 'application/zip',
+          'X-Restore-Filename': encodeURIComponent(file.name),
+        },
+        body: file,
+      });
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');
