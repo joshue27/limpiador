@@ -151,8 +151,17 @@ export function RestoreForm() {
       const fd = new FormData();
       fd.append('zip', file);
       const res = await fetch('/api/exports/restore', { method: 'POST', body: fd });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        setError(`${res.status}: ${text.slice(0, 200) || 'Error del servidor'}`);
+        setRestoreRunId(null);
+        setRestoreStatus(null);
+        return;
+      }
+
       const data = (await res.json()) as RestoreStartResponse;
-      if (!res.ok || !data.ok) {
+      if (!data.ok) {
         setError(data.error || 'Error al restaurar');
         setRestoreRunId(null);
         setRestoreStatus(null);
@@ -169,15 +178,9 @@ export function RestoreForm() {
       }
     } catch (err) {
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        setError(
-          'Error de conexión. Verifique que el archivo no supere los 50 MB y que el servidor esté accesible.',
-        );
-      } else if (err instanceof SyntaxError) {
-        setError(
-          'El servidor devolvió una respuesta inesperada. Puede ser que el archivo exceda el tamaño permitido por el proxy.',
-        );
+        setError('Error de conexión. Verifique que el servidor esté accesible.');
       } else {
-        setError('Error de conexión');
+        setError('Error al procesar la respuesta del servidor.');
       }
       setRestoreRunId(null);
       setRestoreStatus(null);
