@@ -24,15 +24,24 @@ export async function POST(request: Request) {
   } | null;
 
   const fileName = body?.fileName?.trim();
-  const fileSize = body?.fileSize;
-  const chunkCount = body?.chunkCount;
+  const rawFileSize = body?.fileSize;
+  const rawChunkCount = body?.chunkCount;
 
-  if (!fileName || !Number.isFinite(fileSize) || !Number.isFinite(chunkCount)) {
+  if (
+    !fileName ||
+    typeof rawFileSize !== 'number' ||
+    !Number.isFinite(rawFileSize) ||
+    typeof rawChunkCount !== 'number' ||
+    !Number.isFinite(rawChunkCount)
+  ) {
     return NextResponse.json(
       { error: 'Metadatos de subida inválidos.' },
       { status: 400, headers: { 'Cache-Control': 'no-store' } },
     );
   }
+
+  const fileSize = rawFileSize;
+  const chunkCount = rawChunkCount;
 
   if (fileSize <= 0 || fileSize > MAX_RESTORE_ZIP_BYTES) {
     return NextResponse.json(
