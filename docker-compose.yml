@@ -14,6 +14,7 @@ services:
       - media:/app/media
       - exports:/app/exports
       - config:/app/config
+      - public:/app/public
       - /var/backups/limpiador/postgres:/var/backups/limpiador/postgres
     environment:
       CONFIG_DIR: /app/config
@@ -123,3 +124,4 @@ volumes:
   media:
   exports:
   config:
+  public:
