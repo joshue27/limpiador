@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { NotificationBell } from '@/modules/notifications/NotificationBell';
 import type { AppSession } from '@/modules/auth/session';
 
 const navItems = [
@@ -15,7 +16,15 @@ const navItems = [
   { href: '/settings', label: 'Configuración', icon: '⚙️', key: 'settings' },
 ];
 
-export function AppShell({ children, session, sidebarColor }: { children: React.ReactNode; session: AppSession; sidebarColor?: string | null }) {
+export function AppShell({
+  children,
+  session,
+  sidebarColor,
+}: {
+  children: React.ReactNode;
+  session: AppSession;
+  sidebarColor?: string | null;
+}) {
   const isAdmin = session.role === 'ADMIN';
   const perms = session.permissions ?? {};
 
@@ -36,7 +45,8 @@ export function AppShell({ children, session, sidebarColor }: { children: React.
         <nav className="nav-list" aria-label="Principal">
           {visibleItems.map((item) => (
             <Link key={item.href} href={item.href}>
-              <span style={{ marginRight: 6 }}>{item.icon}</span>{item.label}
+              <span style={{ marginRight: 6 }}>{item.icon}</span>
+              {item.label}
             </Link>
           ))}
         </nav>
@@ -54,6 +64,7 @@ export function AppShell({ children, session, sidebarColor }: { children: React.
           </form>
         </header>
         <main className="page-shell">{children}</main>
+        <NotificationBell />
       </div>
     </div>
   );
