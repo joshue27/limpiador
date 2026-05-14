@@ -10,7 +10,9 @@ import {
 import type { QuotedMessageState } from '@/modules/inbox/message-history';
 import { messageResponse } from '@/modules/inbox/message-response';
 
-function makePersistedRow(overrides: Partial<QuotedMessageState> & { id: string; createdAt: Date; rawJson: unknown }): QuotedMessageState {
+function makePersistedRow(
+  overrides: Partial<QuotedMessageState> & { id: string; createdAt: Date; rawJson: unknown },
+): QuotedMessageState {
   return {
     direction: 'OUTBOUND',
     type: 'TEXT',
@@ -27,7 +29,11 @@ describe('sendConversationTextMessage', () => {
   const sentAtIso = sentAt.toISOString();
 
   it('envía, persiste y audita cuando la ventana está activa', async () => {
-    const persisted = makePersistedRow({ id: 'msg-1', createdAt: sentAt, rawJson: { messages: [{ id: 'wamid-1' }] } });
+    const persisted = makePersistedRow({
+      id: 'msg-1',
+      createdAt: sentAt,
+      rawJson: { messages: [{ id: 'wamid-1' }] },
+    });
     const sendText = vi.fn().mockResolvedValue({ messages: [{ id: 'wamid-1' }] });
     const updateConversation = vi.fn().mockResolvedValue(undefined);
     const createMessage = vi.fn().mockResolvedValue(persisted);
@@ -42,7 +48,11 @@ describe('sendConversationTextMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-24T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-24T10:00:00.000Z'),
+          },
         }),
         findQuotedMessage: vi.fn(),
         sendText,
@@ -53,7 +63,11 @@ describe('sendConversationTextMessage', () => {
       },
     );
 
-    expect(result).toEqual({ ok: true, blockedReason: null, message: { ...persisted, createdAt: sentAtIso } });
+    expect(result).toEqual({
+      ok: true,
+      blockedReason: null,
+      message: { ...persisted, createdAt: sentAtIso },
+    });
     expect(sendText).toHaveBeenCalledWith({ to: '5491112345678', body: 'Hola, seguimos por acá.' });
     expect(updateConversation).toHaveBeenCalledWith({
       id: 'conv-1',
@@ -77,7 +91,12 @@ describe('sendConversationTextMessage', () => {
   });
 
   it('devuelve el mensaje con estado SENT y los campos de identidad correctos', async () => {
-    const persisted = makePersistedRow({ id: 'msg-2', createdAt: sentAt, body: 'Test', rawJson: { messages: [{ id: 'wamid-2' }] } });
+    const persisted = makePersistedRow({
+      id: 'msg-2',
+      createdAt: sentAt,
+      body: 'Test',
+      rawJson: { messages: [{ id: 'wamid-2' }] },
+    });
     const createMessage = vi.fn().mockResolvedValue(persisted);
 
     const result = await sendConversationTextMessage(
@@ -89,7 +108,11 @@ describe('sendConversationTextMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-24T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-24T10:00:00.000Z'),
+          },
         }),
         findQuotedMessage: vi.fn(),
         sendText: vi.fn().mockResolvedValue({ messages: [{ id: 'wamid-2' }] }),
@@ -125,7 +148,11 @@ describe('sendConversationTextMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-23T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-23T10:00:00.000Z'),
+          },
         }),
         findQuotedMessage: vi.fn(),
         sendText,
@@ -139,7 +166,8 @@ describe('sendConversationTextMessage', () => {
     expect(result).toEqual({
       ok: false,
       blockedReason: 'template_only',
-      notice: 'La ventana de 24 horas está cerrada. Prepará una plantilla para retomar la conversación.',
+      notice:
+        'La ventana de 24 horas está cerrada. Prepará una plantilla para retomar la conversación.',
     });
     expect(sendText).not.toHaveBeenCalled();
     expect(createMessage).not.toHaveBeenCalled();
@@ -168,7 +196,11 @@ describe('sendConversationTextMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-24T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-24T10:00:00.000Z'),
+          },
         }),
         findQuotedMessage: vi.fn(),
         sendText,
@@ -183,15 +215,24 @@ describe('sendConversationTextMessage', () => {
     expect(result).toHaveProperty('blockedReason', 'send_failed');
     expect(result).toHaveProperty('notice');
     expect(result).toHaveProperty('message');
-    const msg = (result as { ok: false; blockedReason: 'send_failed'; notice: string; message?: QuotedMessageState }).message;
+    const msg = (
+      result as {
+        ok: false;
+        blockedReason: 'send_failed';
+        notice: string;
+        message?: QuotedMessageState;
+      }
+    ).message;
     expect(msg?.status).toBe('FAILED');
     expect(msg?.id).toBe('msg-failed-1');
     expect(msg?.direction).toBe('OUTBOUND');
-    expect(createMessage).toHaveBeenCalledWith(expect.objectContaining({
-      wamid: undefined,
-      body: 'Hola',
-      conversationId: 'conv-1',
-    }));
+    expect(createMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wamid: undefined,
+        body: 'Hola',
+        conversationId: 'conv-1',
+      }),
+    );
     // Audit still fires for the failed attempt so it's traceable
     expect(writeAuditLog).toHaveBeenCalled();
   });
@@ -217,7 +258,11 @@ describe('sendConversationTextMessage', () => {
       },
     );
 
-    expect(result).toEqual({ ok: false, blockedReason: 'empty_body', notice: 'Escribí un mensaje antes de enviarlo.' });
+    expect(result).toEqual({
+      ok: false,
+      blockedReason: 'empty_body',
+      notice: 'Escribí un mensaje antes de enviarlo.',
+    });
     expect(createMessage).not.toHaveBeenCalled();
     expect(writeAuditLog).not.toHaveBeenCalled();
   });
@@ -239,7 +284,12 @@ describe('sendConversationTextMessage', () => {
         messages: [{ id: 'wamid-3' }],
         quotedMessageId: 'quoted-1',
         quotedWamid: 'wamid-quoted-1',
-        quotedMessagePreview: { body: 'Mensaje original', caption: null, type: 'TEXT', direction: 'INBOUND' },
+        quotedMessagePreview: {
+          body: 'Mensaje original',
+          caption: null,
+          type: 'TEXT',
+          direction: 'INBOUND',
+        },
       },
     });
     const createMessage = vi.fn().mockResolvedValue(persisted);
@@ -254,7 +304,11 @@ describe('sendConversationTextMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-24T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-24T10:00:00.000Z'),
+          },
         }),
         findQuotedMessage: vi.fn().mockResolvedValue(quotedMessage),
         sendText: vi.fn().mockResolvedValue({ messages: [{ id: 'wamid-3' }] }),
@@ -270,13 +324,15 @@ describe('sendConversationTextMessage', () => {
     const msg = (result as { ok: true; message: QuotedMessageState }).message;
     expect(msg.id).toBe('msg-quoted-1');
     expect(msg.status).toBe('SENT');
-    expect(createMessage).toHaveBeenCalledWith(expect.objectContaining({
-      rawJson: expect.objectContaining({
-        quotedMessageId: 'quoted-1',
-        quotedWamid: 'wamid-quoted-1',
-        quotedMessagePreview: expect.objectContaining({ body: 'Mensaje original' }),
+    expect(createMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rawJson: expect.objectContaining({
+          quotedMessageId: 'quoted-1',
+          quotedWamid: 'wamid-quoted-1',
+          quotedMessagePreview: expect.objectContaining({ body: 'Mensaje original' }),
+        }),
       }),
-    }));
+    );
   });
 });
 
@@ -284,6 +340,7 @@ describe('sendConversationTemplateMessage', () => {
   it('envía, persiste y audita una plantilla disponible cuando la ventana está cerrada', async () => {
     const sendTemplate = vi.fn().mockResolvedValue({ messages: [{ id: 'wamid-template-1' }] });
     const updateConversation = vi.fn().mockResolvedValue(undefined);
+    const updateContactWindow = vi.fn().mockResolvedValue(undefined);
     const createMessage = vi.fn().mockResolvedValue(undefined);
     const writeAuditLog = vi.fn().mockResolvedValue(undefined);
 
@@ -296,11 +353,20 @@ describe('sendConversationTemplateMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-23T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-23T10:00:00.000Z'),
+          },
         }),
-        listTemplates: vi.fn().mockResolvedValue([{ name: 'reabrir_chat', languageCode: 'es', body: 'Hola, retomamos la conversación.' }]),
+        listTemplates: vi
+          .fn()
+          .mockResolvedValue([
+            { name: 'reabrir_chat', languageCode: 'es', body: 'Hola, retomamos la conversación.' },
+          ]),
         sendTemplate,
         updateConversation,
+        updateContactWindow,
         createMessage,
         writeAuditLog,
         now: () => new Date('2026-04-24T18:00:00.000Z'),
@@ -308,10 +374,19 @@ describe('sendConversationTemplateMessage', () => {
     );
 
     expect(result).toEqual({ ok: true, blockedReason: null });
-    expect(sendTemplate).toHaveBeenCalledWith({ to: '5491112345678', templateName: 'reabrir_chat', languageCode: 'es' });
+    expect(sendTemplate).toHaveBeenCalledWith({
+      to: '5491112345678',
+      templateName: 'reabrir_chat',
+      languageCode: 'es',
+    });
     expect(updateConversation).toHaveBeenCalledWith({
       id: 'conv-1',
       lastMessageAt: new Date('2026-04-24T18:00:00.000Z'),
+    });
+    expect(updateContactWindow).toHaveBeenCalledWith({
+      contactId: 'contact-1',
+      openedAt: new Date('2026-04-24T18:00:00.000Z'),
+      openedBy: 'TEMPLATE',
     });
     expect(createMessage).toHaveBeenCalledWith({
       wamid: 'wamid-template-1',
@@ -333,6 +408,7 @@ describe('sendConversationTemplateMessage', () => {
   it('rechaza la plantilla cuando la opción elegida no está disponible', async () => {
     const sendTemplate = vi.fn();
     const createMessage = vi.fn();
+    const updateContactWindow = vi.fn();
     const writeAuditLog = vi.fn();
 
     const result = await sendConversationTemplateMessage(
@@ -346,9 +422,12 @@ describe('sendConversationTemplateMessage', () => {
           id: 'conv-1',
           contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: null },
         }),
-        listTemplates: vi.fn().mockResolvedValue([{ name: 'seguimiento_pago', languageCode: 'es' }]),
+        listTemplates: vi
+          .fn()
+          .mockResolvedValue([{ name: 'seguimiento_pago', languageCode: 'es' }]),
         sendTemplate,
         updateConversation: vi.fn(),
+        updateContactWindow,
         createMessage,
         writeAuditLog,
         now: () => new Date('2026-04-24T18:00:00.000Z'),
@@ -361,6 +440,7 @@ describe('sendConversationTemplateMessage', () => {
       notice: 'La plantilla elegida ya no está disponible para esta apertura.',
     });
     expect(sendTemplate).not.toHaveBeenCalled();
+    expect(updateContactWindow).not.toHaveBeenCalled();
     expect(createMessage).not.toHaveBeenCalled();
     expect(writeAuditLog).not.toHaveBeenCalled();
   });
@@ -384,7 +464,11 @@ describe('sendConversationDocumentMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-24T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-24T10:00:00.000Z'),
+          },
         }),
         uploadDocument,
         sendDocument,
@@ -395,7 +479,11 @@ describe('sendConversationDocumentMessage', () => {
     );
 
     expect(result).toEqual({ ok: true, blockedReason: null });
-    expect(uploadDocument).toHaveBeenCalledWith({ file, filename: 'factura.pdf', mimeType: 'application/pdf' });
+    expect(uploadDocument).toHaveBeenCalledWith({
+      file,
+      filename: 'factura.pdf',
+      mimeType: 'application/pdf',
+    });
     expect(sendDocument).toHaveBeenCalledWith({
       to: '5491112345678',
       mediaId: 'wa-media-1',
@@ -422,7 +510,13 @@ describe('sendConversationDocumentMessage', () => {
       action: 'inbox.document_sent',
       entityType: 'conversation',
       entityId: 'conv-1',
-      metadata: { wamid: 'wamid-document-1', mediaId: 'wa-media-1', filename: 'factura.pdf', mimeType: 'application/pdf', size: 8 },
+      metadata: {
+        wamid: 'wamid-document-1',
+        mediaId: 'wa-media-1',
+        filename: 'factura.pdf',
+        mimeType: 'application/pdf',
+        size: 8,
+      },
     });
   });
 
@@ -455,7 +549,8 @@ describe('sendConversationDocumentMessage', () => {
     expect(result).toEqual({
       ok: false,
       blockedReason: 'unsupported_type',
-      notice: 'Por ahora podés adjuntar PDF, JPG o PNG desde el Inbox. WhatsApp Cloud API no acepta WEBP como imagen saliente.',
+      notice:
+        'Por ahora podés adjuntar PDF, JPG o PNG desde el Inbox. WhatsApp Cloud API no acepta WEBP como imagen saliente.',
     });
     expect(uploadDocument).not.toHaveBeenCalled();
     expect(sendDocument).not.toHaveBeenCalled();
@@ -480,7 +575,11 @@ describe('sendConversationDocumentMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-23T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-23T10:00:00.000Z'),
+          },
         }),
         uploadDocument,
         sendDocument,
@@ -493,7 +592,8 @@ describe('sendConversationDocumentMessage', () => {
     expect(result).toEqual({
       ok: false,
       blockedReason: 'template_only',
-      notice: 'La ventana de 24 horas está cerrada. Prepará una plantilla para retomar la conversación.',
+      notice:
+        'La ventana de 24 horas está cerrada. Prepará una plantilla para retomar la conversación.',
     });
     expect(uploadDocument).not.toHaveBeenCalled();
     expect(sendDocument).not.toHaveBeenCalled();
@@ -520,7 +620,11 @@ describe('sendConversationAttachmentMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-24T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-24T10:00:00.000Z'),
+          },
         }),
         uploadMedia,
         sendMedia,
@@ -559,7 +663,13 @@ describe('sendConversationAttachmentMessage', () => {
       action: 'inbox.image_sent',
       entityType: 'conversation',
       entityId: 'conv-1',
-      metadata: { wamid: 'wamid-image-1', mediaId: 'wa-media-image-1', filename: 'foto.png', mimeType: 'image/png', size: 8 },
+      metadata: {
+        wamid: 'wamid-image-1',
+        mediaId: 'wa-media-image-1',
+        filename: 'foto.png',
+        mimeType: 'image/png',
+        size: 8,
+      },
     });
   });
 
@@ -580,7 +690,11 @@ describe('sendConversationAttachmentMessage', () => {
       {
         findConversation: vi.fn().mockResolvedValue({
           id: 'conv-1',
-          contact: { id: 'contact-1', waId: '5491112345678', lastInboundAt: new Date('2026-04-24T10:00:00.000Z') },
+          contact: {
+            id: 'contact-1',
+            waId: '5491112345678',
+            lastInboundAt: new Date('2026-04-24T10:00:00.000Z'),
+          },
         }),
         uploadMedia,
         sendMedia,
@@ -593,7 +707,8 @@ describe('sendConversationAttachmentMessage', () => {
     expect(result).toEqual({
       ok: false,
       blockedReason: 'unsupported_type',
-      notice: 'Por ahora podés adjuntar PDF, JPG o PNG desde el Inbox. WhatsApp Cloud API no acepta WEBP como imagen saliente.',
+      notice:
+        'Por ahora podés adjuntar PDF, JPG o PNG desde el Inbox. WhatsApp Cloud API no acepta WEBP como imagen saliente.',
     });
     expect(uploadMedia).not.toHaveBeenCalled();
     expect(sendMedia).not.toHaveBeenCalled();
@@ -626,7 +741,8 @@ describe('sendConversationAttachmentMessage', () => {
     expect(result).toEqual({
       ok: false,
       blockedReason: 'unsupported_type',
-      notice: 'Por ahora podés adjuntar PDF, JPG o PNG desde el Inbox. WhatsApp Cloud API no acepta WEBP como imagen saliente.',
+      notice:
+        'Por ahora podés adjuntar PDF, JPG o PNG desde el Inbox. WhatsApp Cloud API no acepta WEBP como imagen saliente.',
     });
     expect(uploadMedia).not.toHaveBeenCalled();
     expect(sendMedia).not.toHaveBeenCalled();
@@ -637,7 +753,8 @@ describe('sendConversationAttachmentMessage', () => {
 
 describe('sendConversationAttachmentMessages', () => {
   it('envía múltiples adjuntos soportados y usa el texto solo como caption del primero', async () => {
-    const sendSingleAttachment = vi.fn()
+    const sendSingleAttachment = vi
+      .fn()
       .mockResolvedValueOnce({ ok: true, blockedReason: null })
       .mockResolvedValueOnce({ ok: true, blockedReason: null });
     const pdf = new File(['pdf-data'], 'factura.pdf', { type: 'application/pdf' });
@@ -686,7 +803,8 @@ describe('sendConversationAttachmentMessages', () => {
     expect(result).toEqual({
       ok: false,
       blockedReason: 'unsupported_type',
-      notice: 'Por ahora podés adjuntar PDF, JPG o PNG desde el Inbox. WhatsApp Cloud API no acepta WEBP como imagen saliente.',
+      notice:
+        'Por ahora podés adjuntar PDF, JPG o PNG desde el Inbox. WhatsApp Cloud API no acepta WEBP como imagen saliente.',
     });
     expect(sendSingleAttachment).not.toHaveBeenCalled();
   });
@@ -718,7 +836,14 @@ describe('messageResponse (route JSON contract)', () => {
   }
 
   it('incluye message en JSON success cuando se provee', async () => {
-    const response = messageResponse(jsonRequest(), 'conv-1', 'Mensaje enviado.', 'success', 200, sampleMessage);
+    const response = messageResponse(
+      jsonRequest(),
+      'conv-1',
+      'Mensaje enviado.',
+      'success',
+      200,
+      sampleMessage,
+    );
     const body = await response.json();
 
     expect(body).toEqual({
@@ -736,7 +861,14 @@ describe('messageResponse (route JSON contract)', () => {
       id: 'msg-failed-1',
       status: 'FAILED',
     };
-    const response = messageResponse(jsonRequest(), 'conv-1', 'El mensaje no pudo enviarse.', 'error', 400, failedMessage);
+    const response = messageResponse(
+      jsonRequest(),
+      'conv-1',
+      'El mensaje no pudo enviarse.',
+      'error',
+      400,
+      failedMessage,
+    );
     const body = await response.json();
 
     expect(body).toEqual({
@@ -761,7 +893,14 @@ describe('messageResponse (route JSON contract)', () => {
   });
 
   it('redirige sin incluir message en el body (HTML request)', async () => {
-    const response = messageResponse(htmlRequest(), 'conv-1', 'Mensaje enviado.', 'success', 200, sampleMessage);
+    const response = messageResponse(
+      htmlRequest(),
+      'conv-1',
+      'Mensaje enviado.',
+      'success',
+      200,
+      sampleMessage,
+    );
     // HTML requests get a redirect, not JSON
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toContain('/inbox?conversation=conv-1');

@@ -12,7 +12,9 @@ describe('getConversationComposerState', () => {
   const now = new Date('2026-04-24T18:00:00.000Z');
 
   beforeEach(() => {
-    vi.mocked(getConfig).mockReturnValue({ whatsappWindowBypass: false } as ReturnType<typeof getConfig>);
+    vi.mocked(getConfig).mockReturnValue({ whatsappWindowBypass: false } as ReturnType<
+      typeof getConfig
+    >);
   });
 
   it('habilita texto libre cuando la ventana Meta sigue activa', () => {
@@ -20,15 +22,19 @@ describe('getConversationComposerState', () => {
 
     expect(state.mode).toBe('free_text');
     expect(state.canSendFreeText).toBe(true);
-    expect(state.notice).toBe('Podés responder con texto libre mientras la ventana de 24 horas siga activa.');
+    expect(state.notice).toBe(
+      'Podés responder con texto libre mientras la ventana de 24 horas siga activa.',
+    );
   });
 
-  it('bloquea texto libre si nunca hubo actividad entrante', () => {
+  it('bloquea texto libre si nunca hubo apertura registrada', () => {
     const state = getConversationComposerState(null, now);
 
     expect(state.mode).toBe('template_only');
     expect(state.canSendFreeText).toBe(false);
-    expect(state.notice).toBe('Todavía no podés enviar texto libre: no hay actividad entrante registrada.');
+    expect(state.notice).toBe(
+      'Todavía no podés enviar texto libre: no hay una apertura registrada de la ventana de 24 horas.',
+    );
   });
 
   it('bloquea texto libre cuando la ventana ya cerró', () => {
@@ -36,11 +42,15 @@ describe('getConversationComposerState', () => {
 
     expect(state.mode).toBe('template_only');
     expect(state.canSendFreeText).toBe(false);
-    expect(state.notice).toBe('La ventana de 24 horas está cerrada. Prepará una plantilla para retomar la conversación.');
+    expect(state.notice).toBe(
+      'La ventana de 24 horas está cerrada. Prepará una plantilla para retomar la conversación.',
+    );
   });
 
   it('fuerza texto libre cuando WHATSAPP_WINDOW_BYPASS está activo (dev)', () => {
-    vi.mocked(getConfig).mockReturnValue({ whatsappWindowBypass: true } as ReturnType<typeof getConfig>);
+    vi.mocked(getConfig).mockReturnValue({ whatsappWindowBypass: true } as ReturnType<
+      typeof getConfig
+    >);
 
     // Even with null lastInboundAt, bypass should unlock
     const stateNull = getConversationComposerState(null, now);

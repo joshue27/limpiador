@@ -35,7 +35,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/prisma', () => ({ prisma: mocks.prisma }));
-vi.mock('@/modules/inbox/routing', () => ({ routeInboundTextMessage: mocks.routeInboundTextMessage }));
+vi.mock('@/modules/inbox/routing', () => ({
+  routeInboundTextMessage: mocks.routeInboundTextMessage,
+}));
 vi.mock('@/modules/queue/queues', () => ({
   enqueueMediaDownload: mocks.enqueueMediaDownload,
   enqueueWebhookEvent: mocks.enqueueWebhookEvent,
@@ -45,7 +47,11 @@ describe('ingestWhatsAppWebhook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.contact.findUnique.mockResolvedValue(null);
-    mocks.prisma.contact.upsert.mockResolvedValue({ id: 'contact-1', waId: '50255550000', assignedOperatorId: null });
+    mocks.prisma.contact.upsert.mockResolvedValue({
+      id: 'contact-1',
+      waId: '50255550000',
+      assignedOperatorId: null,
+    });
     mocks.prisma.conversation.upsert.mockResolvedValue({ id: 'conversation-1' });
     mocks.prisma.message.upsert.mockResolvedValue({
       id: 'message-1',
@@ -79,6 +85,36 @@ describe('ingestWhatsAppWebhook', () => {
     expect(mocks.prisma.conversation.upsert).toHaveBeenCalledOnce();
     expect(mocks.prisma.message.upsert).toHaveBeenCalledOnce();
     expect(mocks.enqueueWebhookEvent).toHaveBeenCalledWith('inbound-message', 'message-1');
+  });
+
+  it('preserva la apertura previa de la ventana cuando el cliente responde dentro de una ventana abierta por plantilla', async () => {
+    const previousLastInboundAt = new Date('2026-04-20T10:00:00.000Z');
+    const previousWindowOpenedAt = new Date('2026-04-24T12:00:00.000Z');
+    mocks.prisma.message.findUnique.mockResolvedValue(null);
+    mocks.prisma.contact.findUnique.mockResolvedValue({
+      lastInboundAt: previousLastInboundAt,
+      lastWindowOpenedAt: previousWindowOpenedAt,
+      lastWindowOpenedBy: 'TEMPLATE',
+    });
+    const { ingestWhatsAppWebhook } = await import('@/modules/whatsapp/ingestion');
+
+    await ingestWhatsAppWebhook(createInboundPayload());
+
+    expect(mocks.prisma.contact.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          lastInboundAt: expect.any(Date),
+          lastWindowOpenedAt: previousWindowOpenedAt,
+          lastWindowOpenedBy: 'TEMPLATE',
+        }),
+      }),
+    );
+    expect(mocks.routeInboundTextMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        previousWindowOpenedAt,
+        previousWindowOpenedBy: 'TEMPLATE',
+      }),
+    );
   });
 });
 

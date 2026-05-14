@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { AUDIT_ACTIONS } from '@/modules/audit/actions';
 import { writeAuditLog } from '@/modules/audit/audit';
 import { createWhatsAppCloudClient } from '@/modules/whatsapp/client';
+import { whatsappWindowMs } from '@/modules/whatsapp/window';
 
 import { departmentByMenuNumber } from './departments';
 
@@ -32,14 +33,17 @@ async function getRoutingMenuText(): Promise<string> {
 export let ROUTING_MENU_TEXT = DEFAULT_MENU;
 
 // Initialize on module load
-getRoutingMenuText().then((text) => { ROUTING_MENU_TEXT = text; });
+getRoutingMenuText().then((text) => {
+  ROUTING_MENU_TEXT = text;
+});
 
-const closedConversationWindowMs = 24 * 60 * 60 * 1000;
+export function isConversationClosedForRouting(
+  previousWindowOpenedAt: Date | null,
+  nextInboundAt: Date,
+) {
+  if (!previousWindowOpenedAt) return false;
 
-export function isConversationClosedForRouting(previousLastInboundAt: Date | null, nextInboundAt: Date) {
-  if (!previousLastInboundAt) return false;
-
-  return previousLastInboundAt.getTime() + closedConversationWindowMs <= nextInboundAt.getTime();
+  return previousWindowOpenedAt.getTime() + whatsappWindowMs <= nextInboundAt.getTime();
 }
 
 export async function parseRoutingMenuReply(body: string | null | undefined) {
@@ -54,7 +58,8 @@ export async function routeInboundTextMessage(input: {
   contactWaId: string;
   inboundMessageId: string;
   body?: string | null;
-  previousLastInboundAt?: Date | null;
+  previousWindowOpenedAt?: Date | null;
+  previousWindowOpenedBy?: 'INBOUND' | 'TEMPLATE' | null;
   receivedAt?: Date;
   assignedOperatorId?: string | null;
 }) {
@@ -65,7 +70,11 @@ export async function routeInboundTextMessage(input: {
   if (!conversation) return { routed: false as const, reason: 'missing_conversation' };
 
   // If the contact has an assigned operator, route directly to them
-  if (input.assignedOperatorId && !conversation.assignedDepartmentId && !conversation.assignedToId) {
+  if (
+    input.assignedOperatorId &&
+    !conversation.assignedDepartmentId &&
+    !conversation.assignedToId
+  ) {
     const operator = await prisma.user.findFirst({
       where: { id: input.assignedOperatorId, status: 'ACTIVE' },
       select: { id: true, departments: { select: { departmentId: true } } },
@@ -88,16 +97,28 @@ export async function routeInboundTextMessage(input: {
           inboundMessageId: input.inboundMessageId,
         },
       });
-      return { routed: true as const, action: 'contact_owner_assigned' as const, departmentId, assignedToId: operator.id };
+      return {
+        routed: true as const,
+        action: 'contact_owner_assigned' as const,
+        departmentId,
+        assignedToId: operator.id,
+      };
     }
   }
 
+  const inboundAt = input.receivedAt ?? new Date();
   const shouldStartNewRoutingCycle = isConversationClosedForRouting(
-    input.previousLastInboundAt ?? null,
-    input.receivedAt ?? new Date(),
+    input.previousWindowOpenedAt ?? null,
+    inboundAt,
   );
 
-  if (shouldStartNewRoutingCycle && (conversation.assignedDepartmentId || conversation.assignedToId || conversation.status === 'CLAIMED' || conversation.status === 'DEPARTMENT_QUEUE')) {
+  if (
+    shouldStartNewRoutingCycle &&
+    (conversation.assignedDepartmentId ||
+      conversation.assignedToId ||
+      conversation.status === 'CLAIMED' ||
+      conversation.status === 'DEPARTMENT_QUEUE')
+  ) {
     await prisma.conversation.update({
       where: { id: input.conversationId },
       data: { status: 'UNASSIGNED', assignedDepartmentId: null, assignedToId: null },
@@ -109,21 +130,27 @@ export async function routeInboundTextMessage(input: {
       metadata: {
         reason: 'closed_conversation_reopened',
         inboundMessageId: input.inboundMessageId,
-        previousLastInboundAt: input.previousLastInboundAt?.toISOString() ?? null,
+        previousWindowOpenedAt: input.previousWindowOpenedAt?.toISOString() ?? null,
       },
     });
     await sendRoutingMenu(input.conversationId, input.contactWaId, { newCycle: true });
     return { routed: true as const, action: 'menu_sent_new_cycle' as const };
   }
 
-  if (conversation.assignedDepartmentId || conversation.assignedToId) return { routed: false as const, reason: 'already_assigned' };
+  if (conversation.assignedDepartmentId || conversation.assignedToId)
+    return { routed: false as const, reason: 'already_assigned' };
 
   if (conversation.status === 'UNASSIGNED') {
+    if (input.previousWindowOpenedBy === 'TEMPLATE' && !shouldStartNewRoutingCycle) {
+      return { routed: false as const, reason: 'template_window_active' };
+    }
+
     await sendRoutingMenu(input.conversationId, input.contactWaId);
     return { routed: true as const, action: 'menu_sent' as const };
   }
 
-  if (conversation.status !== 'MENU_PENDING') return { routed: false as const, reason: 'not_pending' };
+  if (conversation.status !== 'MENU_PENDING')
+    return { routed: false as const, reason: 'not_pending' };
 
   const selected = await parseRoutingMenuReply(input.body);
   if (!selected) {
@@ -143,7 +170,11 @@ export async function routeInboundTextMessage(input: {
       action: AUDIT_ACTIONS.INBOX_INVALID_MENU_REPLY,
       entityType: 'conversation',
       entityId: input.conversationId,
-      metadata: { inboundMessageId: input.inboundMessageId, selected: selected.code, reason: 'department_inactive_or_missing' },
+      metadata: {
+        inboundMessageId: input.inboundMessageId,
+        selected: selected.code,
+        reason: 'department_inactive_or_missing',
+      },
     });
     return { routed: true as const, action: 'invalid_reply' as const };
   }
@@ -156,16 +187,33 @@ export async function routeInboundTextMessage(input: {
     action: AUDIT_ACTIONS.INBOX_DEPARTMENT_ASSIGNED,
     entityType: 'conversation',
     entityId: input.conversationId,
-    metadata: { departmentId: department.id, departmentCode: department.code, inboundMessageId: input.inboundMessageId },
+    metadata: {
+      departmentId: department.id,
+      departmentCode: department.code,
+      inboundMessageId: input.inboundMessageId,
+    },
   });
-  return { routed: true as const, action: 'department_assigned' as const, departmentId: department.id };
+  return {
+    routed: true as const,
+    action: 'department_assigned' as const,
+    departmentId: department.id,
+  };
 }
 
-async function sendRoutingMenu(conversationId: string, contactWaId: string, options: { invalidReply?: boolean; newCycle?: boolean } = {}) {
-  const body = options.invalidReply ? `No pude reconocer esa opción.\n\n${ROUTING_MENU_TEXT}` : ROUTING_MENU_TEXT;
+async function sendRoutingMenu(
+  conversationId: string,
+  contactWaId: string,
+  options: { invalidReply?: boolean; newCycle?: boolean } = {},
+) {
+  const body = options.invalidReply
+    ? `No pude reconocer esa opción.\n\n${ROUTING_MENU_TEXT}`
+    : ROUTING_MENU_TEXT;
   const response = await createWhatsAppCloudClient().sendText({ to: contactWaId, body });
   const wamid = response.messages?.[0]?.id;
-  await prisma.conversation.update({ where: { id: conversationId }, data: { status: 'MENU_PENDING' } });
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { status: 'MENU_PENDING' },
+  });
   await prisma.message.create({
     data: {
       wamid,
@@ -183,6 +231,10 @@ async function sendRoutingMenu(conversationId: string, contactWaId: string, opti
     action: AUDIT_ACTIONS.INBOX_MENU_SENT,
     entityType: 'conversation',
     entityId: conversationId,
-    metadata: { invalidReply: options.invalidReply ?? false, newCycle: options.newCycle ?? false, wamid },
+    metadata: {
+      invalidReply: options.invalidReply ?? false,
+      newCycle: options.newCycle ?? false,
+      wamid,
+    },
   });
 }

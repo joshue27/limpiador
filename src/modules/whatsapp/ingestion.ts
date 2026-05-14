@@ -3,6 +3,11 @@ import { Prisma, type MessageStatus, type MessageType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { routeInboundTextMessage } from '@/modules/inbox/routing';
 import { enqueueMediaDownload, enqueueWebhookEvent } from '@/modules/queue/queues';
+import {
+  getWindowOpenedAt,
+  getWindowOpenedBy,
+  resolveWindowState,
+} from '@/modules/whatsapp/window';
 
 type IncomingMessage = {
   id: string;
@@ -38,24 +43,37 @@ function asArray<T>(value: unknown): T[] {
 
 function messageType(type: string | undefined): MessageType {
   switch (type) {
-    case 'text': return 'TEXT';
-    case 'image': return 'IMAGE';
-    case 'audio': return 'AUDIO';
-    case 'document': return 'DOCUMENT';
-    case 'video': return 'VIDEO';
-    case 'sticker': return 'STICKER';
-    case 'template': return 'TEMPLATE';
-    default: return 'UNKNOWN';
+    case 'text':
+      return 'TEXT';
+    case 'image':
+      return 'IMAGE';
+    case 'audio':
+      return 'AUDIO';
+    case 'document':
+      return 'DOCUMENT';
+    case 'video':
+      return 'VIDEO';
+    case 'sticker':
+      return 'STICKER';
+    case 'template':
+      return 'TEMPLATE';
+    default:
+      return 'UNKNOWN';
   }
 }
 
 function statusType(status: string | undefined): MessageStatus {
   switch (status) {
-    case 'sent': return 'SENT';
-    case 'delivered': return 'DELIVERED';
-    case 'read': return 'READ';
-    case 'failed': return 'FAILED';
-    default: return 'PENDING';
+    case 'sent':
+      return 'SENT';
+    case 'delivered':
+      return 'DELIVERED';
+    case 'read':
+      return 'READ';
+    case 'failed':
+      return 'FAILED';
+    default:
+      return 'PENDING';
   }
 }
 
@@ -83,26 +101,51 @@ export async function ingestWhatsAppWebhook(payload: Record<string, unknown>) {
     for (const change of asArray<{ value?: Record<string, unknown> }>(entry.changes)) {
       const value = change.value ?? {};
       const profileByWaId = new Map<string, string>();
-      for (const contact of asArray<{ wa_id?: string; profile?: { name?: string } }>(value.contacts)) {
-        if (contact.wa_id && contact.profile?.name) profileByWaId.set(contact.wa_id, contact.profile.name);
+      for (const contact of asArray<{ wa_id?: string; profile?: { name?: string } }>(
+        value.contacts,
+      )) {
+        if (contact.wa_id && contact.profile?.name)
+          profileByWaId.set(contact.wa_id, contact.profile.name);
       }
 
       for (const message of asArray<IncomingMessage>(value.messages)) {
         if (!message.id || !message.from) continue;
-        const existingMessage = await prisma.message.findUnique({ where: { wamid: message.id }, select: { id: true } });
+        const existingMessage = await prisma.message.findUnique({
+          where: { wamid: message.id },
+          select: { id: true },
+        });
         if (existingMessage) continue;
 
         const receivedAt = timestampToDate(message.timestamp);
         const media = getMedia(message);
         const previousContact = await prisma.contact.findUnique({
           where: { waId: message.from },
-          select: { lastInboundAt: true },
+          select: { lastInboundAt: true, lastWindowOpenedAt: true, lastWindowOpenedBy: true },
         });
-        const previousLastInboundAt = previousContact?.lastInboundAt ?? null;
+        const previousWindowOpenedAt = getWindowOpenedAt(previousContact ?? {});
+        const previousWindowOpenedBy = getWindowOpenedBy(previousContact ?? {});
+        const nextWindowState = resolveWindowState(
+          previousWindowOpenedAt,
+          previousWindowOpenedBy,
+          receivedAt,
+          'INBOUND',
+        );
         const contact = await prisma.contact.upsert({
           where: { waId: message.from },
-          create: { waId: message.from, phone: message.from, displayName: profileByWaId.get(message.from), lastInboundAt: receivedAt },
-          update: { displayName: profileByWaId.get(message.from), lastInboundAt: receivedAt },
+          create: {
+            waId: message.from,
+            phone: message.from,
+            displayName: profileByWaId.get(message.from),
+            lastInboundAt: receivedAt,
+            lastWindowOpenedAt: nextWindowState.openedAt,
+            lastWindowOpenedBy: nextWindowState.openedBy,
+          },
+          update: {
+            displayName: profileByWaId.get(message.from),
+            lastInboundAt: receivedAt,
+            lastWindowOpenedAt: nextWindowState.openedAt,
+            lastWindowOpenedBy: nextWindowState.openedBy,
+          },
         });
         const conversation = await prisma.conversation.upsert({
           where: { contactId: contact.id },
@@ -116,7 +159,14 @@ export async function ingestWhatsAppWebhook(payload: Record<string, unknown>) {
         if (replyToWamid) {
           const quoted = await prisma.message.findUnique({
             where: { wamid: replyToWamid },
-            select: { id: true, wamid: true, direction: true, type: true, body: true, caption: true },
+            select: {
+              id: true,
+              wamid: true,
+              direction: true,
+              type: true,
+              body: true,
+              caption: true,
+            },
           });
 
           if (quoted) {
@@ -168,7 +218,10 @@ export async function ingestWhatsAppWebhook(payload: Record<string, unknown>) {
             await enqueueMediaDownload(asset.id);
             mediaQueued += 1;
           } catch (error) {
-            await prisma.mediaAsset.update({ where: { id: asset.id }, data: { downloadError: error instanceof Error ? error.message : 'Queue unavailable' } });
+            await prisma.mediaAsset.update({
+              where: { id: asset.id },
+              data: { downloadError: error instanceof Error ? error.message : 'Queue unavailable' },
+            });
           }
         }
 
@@ -179,7 +232,8 @@ export async function ingestWhatsAppWebhook(payload: Record<string, unknown>) {
               contactWaId: contact.waId,
               inboundMessageId: saved.id,
               body: saved.body,
-              previousLastInboundAt,
+              previousWindowOpenedAt,
+              previousWindowOpenedBy,
               receivedAt,
               assignedOperatorId: contact.assignedOperatorId,
             });
@@ -202,18 +256,36 @@ export async function ingestWhatsAppWebhook(payload: Record<string, unknown>) {
         const occurredAt = timestampToDate(status.timestamp);
         const nextStatus = statusType(status.status);
         await prisma.message.update({ where: { id: message.id }, data: { status: nextStatus } });
-        const exists = await prisma.messageStatusEvent.findFirst({ where: { messageId: message.id, status: nextStatus, occurredAt } });
+        const exists = await prisma.messageStatusEvent.findFirst({
+          where: { messageId: message.id, status: nextStatus, occurredAt },
+        });
         if (!exists) {
-          await prisma.messageStatusEvent.create({ data: { messageId: message.id, status: nextStatus, occurredAt, rawJson: status as Prisma.InputJsonValue } });
+          await prisma.messageStatusEvent.create({
+            data: {
+              messageId: message.id,
+              status: nextStatus,
+              occurredAt,
+              rawJson: status as Prisma.InputJsonValue,
+            },
+          });
         }
         statusesProcessed += 1;
 
         // Reconcile campaign recipient status
-        if (nextStatus === 'SENT' || nextStatus === 'DELIVERED' || nextStatus === 'READ' || nextStatus === 'FAILED') {
+        if (
+          nextStatus === 'SENT' ||
+          nextStatus === 'DELIVERED' ||
+          nextStatus === 'READ' ||
+          nextStatus === 'FAILED'
+        ) {
           const recipientStatus: 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' =
-            nextStatus === 'SENT' ? 'SENT' :
-            nextStatus === 'READ' ? 'READ' :
-            nextStatus === 'FAILED' ? 'FAILED' : 'DELIVERED';
+            nextStatus === 'SENT'
+              ? 'SENT'
+              : nextStatus === 'READ'
+                ? 'READ'
+                : nextStatus === 'FAILED'
+                  ? 'FAILED'
+                  : 'DELIVERED';
           await prisma.campaignRecipient.updateMany({
             where: { wamid: status.id },
             data: { status: recipientStatus },

@@ -15,6 +15,11 @@ import { closeQueueProducers, enqueueCampaignSend, redisConnection } from '@/mod
 import { processRestoreRun } from '@/modules/restore/processor';
 import { launchScheduledCampaign } from '@/modules/campaigns/launch';
 import { createWhatsAppCloudClient } from '@/modules/whatsapp/client';
+import {
+  getWindowOpenedAt,
+  getWindowOpenedBy,
+  resolveWindowState,
+} from '@/modules/whatsapp/window';
 import { generateExportZip } from './export-generator';
 import { generateConversationExport } from './conversation-export';
 import { generateChatExport } from './chat-export';
@@ -66,10 +71,19 @@ type CampaignSendPrisma = {
     findUnique: (input: {
       where: { id: string };
       include: { campaign: { select: { status: true; bodyPlaceholderMap: true } } };
-    }) => Promise<{ status: string; contactId: string; campaign: { status: string; bodyPlaceholderMap: unknown } } | null>;
+    }) => Promise<{
+      status: string;
+      contactId: string;
+      campaign: { status: string; bodyPlaceholderMap: unknown };
+    } | null>;
     update: (input: {
       where: { id: string };
-      data: { status?: 'SENT' | 'FAILED'; wamid?: string; attemptCount: number; lastError: string | null };
+      data: {
+        status?: 'SENT' | 'FAILED';
+        wamid?: string;
+        attemptCount: number;
+        lastError: string | null;
+      };
     }) => Promise<unknown>;
     count: (input: {
       where: {
@@ -93,6 +107,20 @@ type CampaignSendPrisma = {
       where: { name: string };
       select: { body: true };
     }) => Promise<{ body: string } | null>;
+  };
+  contact?: {
+    findUnique: (input: {
+      where: { id: string };
+      select: { lastInboundAt: true; lastWindowOpenedAt: true; lastWindowOpenedBy: true };
+    }) => Promise<{
+      lastInboundAt: Date | null;
+      lastWindowOpenedAt: Date | null;
+      lastWindowOpenedBy: string | null;
+    } | null>;
+    update: (input: {
+      where: { id: string };
+      data: { lastWindowOpenedAt: Date; lastWindowOpenedBy: 'INBOUND' | 'TEMPLATE' };
+    }) => Promise<unknown>;
   };
   conversation?: {
     upsert: (input: {
@@ -171,7 +199,10 @@ function extractPlaceholders(body: string): string[] {
   return [...tokens].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
 }
 
-function renderTemplateBody(body: string | null | undefined, valuesByPlaceholder: Record<string, string> = {}) {
+function renderTemplateBody(
+  body: string | null | undefined,
+  valuesByPlaceholder: Record<string, string> = {},
+) {
   const source = body?.trim();
   if (!source) return '';
   return source.replace(/\{\{(\d+)\}\}/g, (_match, rawIndex) => {
@@ -297,18 +328,17 @@ export async function processCampaignSend(
     '2': phone,
   };
 
-  const resolvedParams = placeholderTokens
-    .map((token) => {
-      const column = placeholderMap[token];
-      if (column) {
-        const value = csvData[column]?.trim();
-        if (value) return { type: 'text' as const, text: value };
-      }
-      // Fallback: {{1}}→displayName, {{2}}→phone
-      const fallback = FALLBACK_MAP[token];
-      if (fallback) return { type: 'text' as const, text: fallback };
-      return null;
-    });
+  const resolvedParams = placeholderTokens.map((token) => {
+    const column = placeholderMap[token];
+    if (column) {
+      const value = csvData[column]?.trim();
+      if (value) return { type: 'text' as const, text: value };
+    }
+    // Fallback: {{1}}→displayName, {{2}}→phone
+    const fallback = FALLBACK_MAP[token];
+    if (fallback) return { type: 'text' as const, text: fallback };
+    return null;
+  });
 
   const bodyParams = resolvedParams.filter((p): p is { type: 'text'; text: string } => p !== null);
 
@@ -324,7 +354,9 @@ export async function processCampaignSend(
       to: contactWaId,
       templateName,
       languageCode: templateLanguage,
-      ...(bodyParams.length > 0 ? { components: [{ type: 'body' as const, parameters: bodyParams }] } : {}),
+      ...(bodyParams.length > 0
+        ? { components: [{ type: 'body' as const, parameters: bodyParams }] }
+        : {}),
     });
     const wamid = response.messages?.[0]?.id;
     const sentAt = new Date();
@@ -333,6 +365,26 @@ export async function processCampaignSend(
       where: { id: recipientId },
       data: { status: 'SENT', wamid, attemptCount: attempt, lastError: null },
     });
+
+    if (campaignPrisma.contact) {
+      const existingContact = await campaignPrisma.contact.findUnique({
+        where: { id: recipient.contactId },
+        select: { lastInboundAt: true, lastWindowOpenedAt: true, lastWindowOpenedBy: true },
+      });
+      const nextWindowState = resolveWindowState(
+        getWindowOpenedAt(existingContact ?? {}),
+        getWindowOpenedBy(existingContact ?? {}),
+        sentAt,
+        'TEMPLATE',
+      );
+      await campaignPrisma.contact.update({
+        where: { id: recipient.contactId },
+        data: {
+          lastWindowOpenedAt: nextWindowState.openedAt,
+          lastWindowOpenedBy: nextWindowState.openedBy,
+        },
+      });
+    }
 
     if (campaignPrisma.conversation && campaignPrisma.message) {
       const conversation = await campaignPrisma.conversation.upsert({
@@ -348,7 +400,9 @@ export async function processCampaignSend(
 
       const renderedBody = renderTemplateBody(
         template?.body,
-        Object.fromEntries(placeholderTokens.map((token, index) => [token, bodyParams[index]?.text ?? ''])),
+        Object.fromEntries(
+          placeholderTokens.map((token, index) => [token, bodyParams[index]?.text ?? '']),
+        ),
       );
       const body = renderedBody || `Plantilla enviada: ${templateName} (${templateLanguage})`;
       const rawJson = {
@@ -497,18 +551,25 @@ export async function startWorker(): Promise<WorkerRuntime> {
 
   campaignWorker.on('failed', async (job, err) => {
     console.error(`[worker] Campaign send permanently failed: job=${job?.id}`, err?.message);
-    const data = job?.data as {
-      campaignId?: string;
-      recipientId?: string;
-      campaignRecipientStatus?: string;
-    } | undefined;
+    const data = job?.data as
+      | {
+          campaignId?: string;
+          recipientId?: string;
+          campaignRecipientStatus?: string;
+        }
+      | undefined;
     if (data?.campaignId && data?.recipientId) {
       try {
-        const recipient = await prisma.campaignRecipient.findUnique({ where: { id: data.recipientId } });
+        const recipient = await prisma.campaignRecipient.findUnique({
+          where: { id: data.recipientId },
+        });
         if (recipient?.status === 'PENDING') {
           await prisma.campaignRecipient.update({
             where: { id: data.recipientId },
-            data: { status: 'FAILED', lastError: (err?.message ?? 'Job failed permanently').slice(0, 300) },
+            data: {
+              status: 'FAILED',
+              lastError: (err?.message ?? 'Job failed permanently').slice(0, 300),
+            },
           });
           await finalizeCampaignIfNoPendingRecipients(data.campaignId, prisma);
         }
@@ -611,8 +672,13 @@ export async function startWorker(): Promise<WorkerRuntime> {
     'restore-processing',
     async (job) => {
       const data = job.data as { restoreRunId?: string; archivePath?: string; userId?: string };
-      if (!data.restoreRunId || !data.archivePath || !data.userId) throw new Error('Missing restore job data');
-      return processRestoreRun({ restoreRunId: data.restoreRunId, archivePath: data.archivePath, userId: data.userId });
+      if (!data.restoreRunId || !data.archivePath || !data.userId)
+        throw new Error('Missing restore job data');
+      return processRestoreRun({
+        restoreRunId: data.restoreRunId,
+        archivePath: data.archivePath,
+        userId: data.userId,
+      });
     },
     { connection, concurrency: 1 },
   );

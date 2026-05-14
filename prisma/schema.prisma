@@ -159,6 +159,8 @@ model Contact {
   blocked             Boolean  @default(false)
   assignedOperatorId  String?  @map("assigned_operator_id")
   lastInboundAt       DateTime? @map("last_inbound_at")
+  lastWindowOpenedAt  DateTime? @map("last_window_opened_at")
+  lastWindowOpenedBy  String?   @map("last_window_opened_by")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 

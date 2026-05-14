@@ -30,6 +30,7 @@ import {
   getConversationComposerState,
   getConversationOpeningTemplateOptions,
 } from '@/modules/inbox/composer';
+import { getWindowOpenedAt, whatsappWindowMs } from '@/modules/whatsapp/window';
 import { encodeInboxCursor } from '@/modules/inbox/cursor';
 import {
   conversationStatusOptions,
@@ -69,8 +70,6 @@ const messageStatusLabels: Record<string, string> = {
   READ: 'Leído',
   FAILED: 'Con error',
 };
-
-const whatsappWindowMs = 24 * 60 * 60 * 1000;
 
 function labelFor(labels: Record<string, string>, value: string) {
   return labels[value] ?? value;
@@ -118,16 +117,16 @@ function formatWindowRemaining(ms: number) {
   return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`;
 }
 
-function whatsappWindowState(lastInboundAt: Date | null, now = new Date()) {
-  if (!lastInboundAt) {
+function whatsappWindowState(windowOpenedAt: Date | null, now = new Date()) {
+  if (!windowOpenedAt) {
     return {
-      label: 'Sin actividad entrante',
-      detail: 'No hay mensajes entrantes registrados',
+      label: 'Sin ventana activa',
+      detail: 'No hay una apertura registrada de la ventana de 24 horas',
       className: 'muted',
     };
   }
 
-  const closesAt = new Date(lastInboundAt.getTime() + whatsappWindowMs);
+  const closesAt = new Date(windowOpenedAt.getTime() + whatsappWindowMs);
   const remainingMs = closesAt.getTime() - now.getTime();
 
   if (remainingMs <= 0) {
@@ -336,7 +335,12 @@ export default async function InboxPage({
       : [];
   // Only show templates marked as available
   const availableTemplateNames = selected
-    ? (await prisma.messageTemplate.findMany({ where: { available: true }, select: { name: true } })).map(t => t.name)
+    ? (
+        await prisma.messageTemplate.findMany({
+          where: { available: true },
+          select: { name: true },
+        })
+      ).map((t) => t.name)
     : [];
   const openingTemplateSeeds = selected
     ? await prisma.campaign.findMany({
@@ -571,7 +575,7 @@ export default async function InboxPage({
             </p>
           ) : null}
           {conversations.map((conversation) => {
-            const windowState = whatsappWindowState(conversation.contact.lastInboundAt, now);
+            const windowState = whatsappWindowState(getWindowOpenedAt(conversation.contact), now);
 
             return (
               <Link
@@ -615,9 +619,12 @@ export default async function InboxPage({
         <article className="card message-panel">
           {selected ? (
             (() => {
-              const selectedWindowState = whatsappWindowState(selected.contact.lastInboundAt, now);
+              const selectedWindowState = whatsappWindowState(
+                getWindowOpenedAt(selected.contact),
+                now,
+              );
               const composerState = getConversationComposerState(
-                selected.contact.lastInboundAt,
+                getWindowOpenedAt(selected.contact),
                 now,
               );
               const composerLayout = getInboxComposerLayoutModel({
