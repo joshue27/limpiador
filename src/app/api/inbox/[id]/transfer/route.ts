@@ -12,12 +12,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const session = await getVerifiedSession();
   if (!session) {
     await auditConversationAccessDenied({ conversationId: id, reason: 'unauthenticated' });
-    return NextResponse.json({ error: 'No tiene permiso para transferir este chat.' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'No tiene permiso para transferir este chat.' },
+      { status: 401 },
+    );
   }
 
   const contentType = request.headers.get('content-type') ?? '';
   const body = contentType.includes('application/json')
-    ? ((await request.json().catch(() => null)) as { toDepartmentId?: string; toUserId?: string; reason?: string } | null)
+    ? ((await request.json().catch(() => null)) as {
+        toDepartmentId?: string;
+        toUserId?: string;
+        reason?: string;
+      } | null)
     : Object.fromEntries((await request.formData()).entries());
   const result = await transferConversation(id, session, {
     toDepartmentId: typeof body?.toDepartmentId === 'string' ? body.toDepartmentId : undefined,
@@ -25,7 +32,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     reason: typeof body?.reason === 'string' ? body.reason : undefined,
   });
   if (!result.ok) {
-    if (result.status === 403) await auditConversationAccessDenied({ session, conversationId: id, reason: 'transfer_forbidden' });
+    if (result.status === 403)
+      await auditConversationAccessDenied({
+        session,
+        conversationId: id,
+        reason: 'transfer_forbidden',
+      });
     if (!contentType.includes('application/json')) {
       const url = new URL(`/inbox?conversation=${id}`, request.url);
       url.searchParams.set('chatNotice', result.error ?? 'Error al transferir');
@@ -35,8 +47,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
   if (!contentType.includes('application/json')) {
-  const reasonParam = typeof body?.reason === 'string' && body.reason.trim() ? `&reason=${encodeURIComponent(body.reason.trim())}` : '';
-    return NextResponse.redirect(safeRedirect(request, `/inbox?conversation=${id}&transferred=1${reasonParam}`), { status: 303 });
+    const reasonParam =
+      typeof body?.reason === 'string' && body.reason.trim()
+        ? `&reason=${encodeURIComponent(body.reason.trim())}`
+        : '';
+    return NextResponse.redirect(
+      safeRedirect(request, `/inbox?conversation=${id}&transferred=1${reasonParam}`),
+      { status: 303 },
+    );
   }
   return NextResponse.json({ ok: true });
 }

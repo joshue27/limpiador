@@ -283,9 +283,8 @@ export default async function SettingsPage({
                     <div
                       style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
                     >
-                      <form
+                      <SoftForm
                         action={`/api/admin/users/${user.id}`}
-                        method="post"
                         style={{ display: 'flex', gap: 4, alignItems: 'center' }}
                       >
                         <input type="hidden" name="userPage" value={String(userPage)} />
@@ -367,9 +366,9 @@ export default async function SettingsPage({
                         >
                           Guardar
                         </button>
-                      </form>
+                      </SoftForm>
                       {user.status === 'ACTIVE' ? (
-                        <form action={`/api/admin/users/${user.id}`} method="post">
+                        <SoftForm action={`/api/admin/users/${user.id}`}>
                           <input type="hidden" name="userPage" value={String(userPage)} />
                           <input type="hidden" name="action" value="delete" />
                           <button
@@ -379,9 +378,9 @@ export default async function SettingsPage({
                           >
                             Desactivar
                           </button>
-                        </form>
+                        </SoftForm>
                       ) : (
-                        <form action={`/api/admin/users/${user.id}`} method="post">
+                        <SoftForm action={`/api/admin/users/${user.id}`}>
                           <input type="hidden" name="userPage" value={String(userPage)} />
                           <input type="hidden" name="action" value="enable" />
                           <button
@@ -391,9 +390,9 @@ export default async function SettingsPage({
                           >
                             Activar
                           </button>
-                        </form>
+                        </SoftForm>
                       )}
-                      <form action={`/api/admin/users/${user.id}`} method="post">
+                      <SoftForm action={`/api/admin/users/${user.id}`}>
                         <input type="hidden" name="userPage" value={String(userPage)} />
                         <input type="hidden" name="action" value="hard_delete" />
                         <button
@@ -403,7 +402,7 @@ export default async function SettingsPage({
                         >
                           Eliminar
                         </button>
-                      </form>
+                      </SoftForm>
                     </div>
                   </div>
                 ))}

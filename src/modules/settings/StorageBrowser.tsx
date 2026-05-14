@@ -430,9 +430,7 @@ export function StorageBrowser() {
                                 </small>
                               </td>
                               <td>{formatSize(file.size)}</td>
-                              <td>
-                                {formatDateTimeClient(file.modifiedAt)}
-                              </td>
+                              <td>{formatDateTimeClient(file.modifiedAt)}</td>
                               <td>
                                 {(() => {
                                   const deleteKey = `${root.kind}:${file.relativePath}`;

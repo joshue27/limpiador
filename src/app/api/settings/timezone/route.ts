@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Solo administradores' }, { status: 403 });
   }
 
-  const body = await request.json().catch(() => null) as { timezone?: string } | null;
+  const body = (await request.json().catch(() => null)) as { timezone?: string } | null;
   const tz = body?.timezone?.trim();
   if (!tz) {
     return NextResponse.json({ error: 'Zona horaria requerida' }, { status: 400 });

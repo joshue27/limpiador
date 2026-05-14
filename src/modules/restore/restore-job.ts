@@ -34,11 +34,11 @@ export async function createRestoreRun(input: {
   originalFilename: string;
 }): Promise<{ id: string; status: RestoreRunStatus }> {
   const id = randomUUID();
-  const rows = await input.prisma.$queryRaw(Prisma.sql`
+  const rows = (await input.prisma.$queryRaw(Prisma.sql`
     INSERT INTO restore_runs (id, created_by, archive_key, original_filename, status, progress, updated_at)
     VALUES (${id}, ${input.userId}, ${input.archiveKey}, ${input.originalFilename}, 'PENDING', 0, now())
     RETURNING id
-  `) as Array<{ id: string }>;
+  `)) as Array<{ id: string }>;
 
   const createdId = rows[0]?.id;
   if (!createdId) throw new Error('No se pudo crear el registro de restauración.');
@@ -53,7 +53,11 @@ export async function markRestoreRunRunning(prisma: Executable, id: string): Pro
   `);
 }
 
-export async function markRestoreRunReady(prisma: Executable, id: string, counts: RestoreCounts): Promise<void> {
+export async function markRestoreRunReady(
+  prisma: Executable,
+  id: string,
+  counts: RestoreCounts,
+): Promise<void> {
   await prisma.$executeRaw(Prisma.sql`
     UPDATE restore_runs
     SET status = 'READY', progress = 100, counts_json = ${counts}, completed_at = now(), updated_at = now(), error = NULL
@@ -61,7 +65,11 @@ export async function markRestoreRunReady(prisma: Executable, id: string, counts
   `);
 }
 
-export async function markRestoreRunFailed(prisma: Executable, id: string, error: unknown): Promise<void> {
+export async function markRestoreRunFailed(
+  prisma: Executable,
+  id: string,
+  error: unknown,
+): Promise<void> {
   const message = error instanceof Error ? error.message : 'Unknown restore error';
   await prisma.$executeRaw(Prisma.sql`
     UPDATE restore_runs
@@ -70,13 +78,16 @@ export async function markRestoreRunFailed(prisma: Executable, id: string, error
   `);
 }
 
-export async function getRestoreRunStatus(prisma: Queryable, id: string): Promise<ReturnType<typeof formatRestoreStatus> | null> {
-  const rows = await prisma.$queryRaw(Prisma.sql`
+export async function getRestoreRunStatus(
+  prisma: Queryable,
+  id: string,
+): Promise<ReturnType<typeof formatRestoreStatus> | null> {
+  const rows = (await prisma.$queryRaw(Prisma.sql`
     SELECT id, status, progress, counts_json, error, updated_at
     FROM restore_runs
     WHERE id = ${id}
     LIMIT 1
-  `) as RestoreRunRow[];
+  `)) as RestoreRunRow[];
   const row = rows[0];
   return row ? formatRestoreStatus(row) : null;
 }

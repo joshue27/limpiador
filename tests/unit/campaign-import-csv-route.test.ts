@@ -40,7 +40,9 @@ describe('campaign CSV import route', () => {
     mocks.prisma.contact.findMany
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'contact-1', phone: '+50255550000' }]);
-    mocks.prisma.campaignRecipient.findMany.mockResolvedValue([{ id: 'recipient-1', contactId: 'contact-1' }]);
+    mocks.prisma.campaignRecipient.findMany.mockResolvedValue([
+      { id: 'recipient-1', contactId: 'contact-1' },
+    ]);
 
     const { POST } = await import('@/app/api/campaigns/import-csv/route');
     const response = await POST(createRequest());
@@ -83,8 +85,14 @@ describe('campaign CSV import route', () => {
 function createRequest() {
   const formData = new FormData();
   formData.set('campaignId', 'campaign-1');
-  formData.set('csv', new File([
-    'phone,name,tags\n+50255550000,Ada Lovelace,vip',
-  ], 'contacts.csv', { type: 'text/csv' }));
-  return new Request('http://localhost/api/campaigns/import-csv', { method: 'POST', body: formData });
+  formData.set(
+    'csv',
+    new File(['phone,name,tags\n+50255550000,Ada Lovelace,vip'], 'contacts.csv', {
+      type: 'text/csv',
+    }),
+  );
+  return new Request('http://localhost/api/campaigns/import-csv', {
+    method: 'POST',
+    body: formData,
+  });
 }

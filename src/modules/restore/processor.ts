@@ -51,7 +51,11 @@ function readEntryAsString(zipFile: yauzl.ZipFile, entry: yauzl.Entry): Promise<
 /**
  * Stream a ZIP entry's content directly to a file on disk.
  */
-function streamEntryToFile(zipFile: yauzl.ZipFile, entry: yauzl.Entry, outputPath: string): Promise<void> {
+function streamEntryToFile(
+  zipFile: yauzl.ZipFile,
+  entry: yauzl.Entry,
+  outputPath: string,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     zipFile.openReadStream(entry, (err, readStream) => {
       if (err || !readStream) return reject(err || new Error('No stream'));
@@ -98,7 +102,11 @@ function collectZipEntries(
   });
 }
 
-export async function processRestoreRun(input: { restoreRunId: string; archivePath: string; userId: string }): Promise<RestoreCounts> {
+export async function processRestoreRun(input: {
+  restoreRunId: string;
+  archivePath: string;
+  userId: string;
+}): Promise<RestoreCounts> {
   await markRestoreRunRunning(prisma, input.restoreRunId);
 
   try {
@@ -113,7 +121,10 @@ export async function processRestoreRun(input: { restoreRunId: string; archivePa
   }
 }
 
-async function restoreArchiveStreaming(archivePath: string, userId: string): Promise<RestoreCounts> {
+async function restoreArchiveStreaming(
+  archivePath: string,
+  userId: string,
+): Promise<RestoreCounts> {
   const mediaRoot = getConfig().storage.mediaRoot;
   await mkdir(mediaRoot, { recursive: true });
 
@@ -128,7 +139,16 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
   let conversationsRestored = 0;
   let messagesRestored = 0;
 
-  const validTypes = ['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT', 'STICKER', 'TEMPLATE', 'UNKNOWN'] as const;
+  const validTypes = [
+    'TEXT',
+    'IMAGE',
+    'AUDIO',
+    'VIDEO',
+    'DOCUMENT',
+    'STICKER',
+    'TEMPLATE',
+    'UNKNOWN',
+  ] as const;
 
   for (const [, content] of textContents) {
     const parsed = parseConversationText(content);
@@ -136,13 +156,19 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
 
     const contact = await prisma.contact.upsert({
       where: { phone: parsed.phone },
-      create: { waId: parsed.waId || parsed.phone, phone: parsed.phone, displayName: parsed.contactName || null },
+      create: {
+        waId: parsed.waId || parsed.phone,
+        phone: parsed.phone,
+        displayName: parsed.contactName || null,
+      },
       update: { displayName: parsed.contactName || undefined },
     });
 
     let conversation = await prisma.conversation.findUnique({ where: { contactId: contact.id } });
     if (!conversation) {
-      conversation = await prisma.conversation.create({ data: { contactId: contact.id, status: 'UNASSIGNED' } });
+      conversation = await prisma.conversation.create({
+        data: { contactId: contact.id, status: 'UNASSIGNED' },
+      });
     }
     conversationsRestored++;
 
@@ -155,8 +181,8 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
       });
       if (existing) continue;
 
-      const msgType = validTypes.includes(msg.type as typeof validTypes[number])
-        ? msg.type as typeof validTypes[number]
+      const msgType = validTypes.includes(msg.type as (typeof validTypes)[number])
+        ? (msg.type as (typeof validTypes)[number])
         : 'UNKNOWN';
 
       const restored = await prisma.message.create({
@@ -186,7 +212,9 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
               mimeType: asset.mime || 'application/octet-stream',
               filename: asset.filename || null,
               size: asset.size,
-              downloadStatus: ['READY', 'PENDING', 'FAILED'].includes(asset.status) ? asset.status as 'READY' | 'PENDING' | 'FAILED' : 'PENDING',
+              downloadStatus: ['READY', 'PENDING', 'FAILED'].includes(asset.status)
+                ? (asset.status as 'READY' | 'PENDING' | 'FAILED')
+                : 'PENDING',
               isComprobante: asset.comprobante,
               storageKey: `restored-${asset.id}`,
             },
@@ -195,7 +223,9 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
               mimeType: asset.mime || 'application/octet-stream',
               filename: asset.filename || null,
               size: asset.size,
-              downloadStatus: ['READY', 'PENDING', 'FAILED'].includes(asset.status) ? asset.status as 'READY' | 'PENDING' | 'FAILED' : 'PENDING',
+              downloadStatus: ['READY', 'PENDING', 'FAILED'].includes(asset.status)
+                ? (asset.status as 'READY' | 'PENDING' | 'FAILED')
+                : 'PENDING',
               storageKey: `restored-${asset.id}`,
             },
           })
@@ -219,9 +249,15 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
 
           const mediaFile = entry.fileName.split('/').at(-1) ?? '';
           const rawAssetId = mediaFile.split('_')[0];
-          if (!rawAssetId) { zipFile.readEntry(); return; }
+          if (!rawAssetId) {
+            zipFile.readEntry();
+            return;
+          }
           const safeId = rawAssetId.replace(/[^a-zA-Z0-9-]/g, '');
-          if (!safeId) { zipFile.readEntry(); return; }
+          if (!safeId) {
+            zipFile.readEntry();
+            return;
+          }
 
           const outputPath = path.join(mediaRoot, `restored-${safeId}`);
           await streamEntryToFile(zipFile, entry, outputPath);
@@ -250,7 +286,12 @@ async function restoreArchiveStreaming(archivePath: string, userId: string): Pro
   return counts;
 }
 
-function parseConversationText(content: string): { contactName: string; phone: string; waId: string; messages: ParsedRestoreMessage[] } {
+function parseConversationText(content: string): {
+  contactName: string;
+  phone: string;
+  waId: string;
+  messages: ParsedRestoreMessage[];
+} {
   const lines = content.split('\n');
   let contactName = '';
   let phone = '';
@@ -267,7 +308,9 @@ function parseConversationText(content: string): { contactName: string; phone: s
       if (inHeader) continue;
     }
 
-    const mediaMatch = line.match(/^MEDIA:\s*id=(.+?)\|filename=(.*?)\|mime=(.*?)\|status=(.*?)\|comprobante=(\d)\|size=(\d+)/);
+    const mediaMatch = line.match(
+      /^MEDIA:\s*id=(.+?)\|filename=(.*?)\|mime=(.*?)\|status=(.*?)\|comprobante=(\d)\|size=(\d+)/,
+    );
     if (mediaMatch) {
       const lastMsg = messages.at(-1);
       if (lastMsg) {

@@ -18,16 +18,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
 
-  const body = await request.json().catch(() => null) as { path?: string } | null;
+  const body = (await request.json().catch(() => null)) as { path?: string } | null;
   if (!body?.path?.trim()) {
     return NextResponse.json({ error: 'Ruta del archivo requerida' }, { status: 400 });
   }
 
   // Validate the path is within allowed directories (exports or backup root)
-  const allowedRoots = [
-    getConfig().storage.exportRoot,
-    getConfig().storage.backupRoot,
-  ].filter(Boolean);
+  const allowedRoots = [getConfig().storage.exportRoot, getConfig().storage.backupRoot].filter(
+    Boolean,
+  );
 
   let resolvedPath = '';
   for (const root of allowedRoots) {
@@ -40,9 +39,12 @@ export async function POST(request: Request) {
   }
 
   if (!resolvedPath) {
-    return NextResponse.json({
-      error: 'La ruta no está dentro de un directorio permitido (exports o backups).',
-    }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: 'La ruta no está dentro de un directorio permitido (exports o backups).',
+      },
+      { status: 400 },
+    );
   }
 
   try {
@@ -68,14 +70,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No se pudo encolar la restauración' }, { status: 503 });
     }
 
-    return NextResponse.json({
-      ok: true,
-      restoreRunId: restoreRun.id,
-      status: restoreRun.status,
-    }, { status: 202 });
+    return NextResponse.json(
+      {
+        ok: true,
+        restoreRunId: restoreRun.id,
+        status: restoreRun.status,
+      },
+      { status: 202 },
+    );
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Error al preparar la restauración',
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Error al preparar la restauración',
+      },
+      { status: 500 },
+    );
   }
 }

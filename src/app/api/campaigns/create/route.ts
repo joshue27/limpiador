@@ -26,7 +26,9 @@ export async function POST(request: Request) {
   const name = String(formData.get('name') ?? '').trim();
   const templateName = String(formData.get('templateName') ?? '').trim();
   const templateLanguage = String(formData.get('templateLanguage') ?? 'es').trim();
-  const confirmation = String(formData.get('confirmation') ?? '').trim().toUpperCase();
+  const confirmation = String(formData.get('confirmation') ?? '')
+    .trim()
+    .toUpperCase();
   const includeAudience = formData.get('includeAudience') === 'on';
 
   if (!name || !templateName || !templateLanguage || confirmation !== 'BORRADOR') {

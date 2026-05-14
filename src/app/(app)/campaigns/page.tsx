@@ -123,9 +123,9 @@ export default async function CampaignsPage({
       </section>
 
       <section className="card stack" style={{ flexShrink: 0 }}>
-          <h3>Nueva campaña</h3>
-          <CampaignForm templates={approvedTemplates} />
-        </section>
+        <h3>Nueva campaña</h3>
+        <CampaignForm templates={approvedTemplates} />
+      </section>
 
       <section
         className="card"

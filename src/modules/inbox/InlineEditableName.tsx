@@ -9,41 +9,49 @@ type InlineEditableNameProps = {
   waId: string;
 };
 
-export function InlineEditableName({ contactId, displayName, phone, waId }: InlineEditableNameProps) {
+export function InlineEditableName({
+  contactId,
+  displayName,
+  phone,
+  waId,
+}: InlineEditableNameProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(displayName ?? '');
   const [saving, setSaving] = useState(false);
   const [currentName, setCurrentName] = useState(displayName);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const save = useCallback(async (newValue: string) => {
-    const trimmed = newValue.trim();
-    if (trimmed === (currentName ?? '')) {
-      setEditing(false);
-      return;
-    }
+  const save = useCallback(
+    async (newValue: string) => {
+      const trimmed = newValue.trim();
+      if (trimmed === (currentName ?? '')) {
+        setEditing(false);
+        return;
+      }
 
-    setSaving(true);
-    try {
-      const res = await fetch('/api/contacts/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: contactId,
-          waId,
-          displayName: trimmed || null,
-        }),
-      });
-      if (!res.ok) throw new Error('Error al guardar');
-      setCurrentName(trimmed || null);
-      setValue(trimmed);
-    } catch {
-      setValue(currentName ?? '');
-    } finally {
-      setSaving(false);
-      setEditing(false);
-    }
-  }, [contactId, waId, currentName]);
+      setSaving(true);
+      try {
+        const res = await fetch('/api/contacts/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: contactId,
+            waId,
+            displayName: trimmed || null,
+          }),
+        });
+        if (!res.ok) throw new Error('Error al guardar');
+        setCurrentName(trimmed || null);
+        setValue(trimmed);
+      } catch {
+        setValue(currentName ?? '');
+      } finally {
+        setSaving(false);
+        setEditing(false);
+      }
+    },
+    [contactId, waId, currentName],
+  );
 
   const handleDoubleClick = useCallback(() => {
     setValue(currentName ?? '');
@@ -58,7 +66,10 @@ export function InlineEditableName({ contactId, displayName, phone, waId }: Inli
           ref={inputRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') save(value); if (e.key === 'Escape') setEditing(false); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save(value);
+            if (e.key === 'Escape') setEditing(false);
+          }}
           onBlur={() => save(value)}
           disabled={saving}
           placeholder={phone}

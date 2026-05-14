@@ -49,10 +49,12 @@ export function TimezoneSelector() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timezone }),
       });
-      const data = await res.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
 
       if (res.ok && data?.ok) {
-        setResult(`Zona horaria guardada: ${timezone}. Recargue la página para aplicar los cambios.`);
+        setResult(
+          `Zona horaria guardada: ${timezone}. Recargue la página para aplicar los cambios.`,
+        );
         setResultType('success');
         setEffective(timezone);
       } else {
@@ -71,9 +73,15 @@ export function TimezoneSelector() {
     <form onSubmit={save} className="stack" style={{ gap: 8, maxWidth: 400 }}>
       <label>
         <span>Zona horaria</span>
-        <select value={timezone} onChange={(e) => setTimezone(e.target.value)} style={{ width: '100%' }}>
+        <select
+          value={timezone}
+          onChange={(e) => setTimezone(e.target.value)}
+          style={{ width: '100%' }}
+        >
           {COMMON_TZ.map((tz) => (
-            <option key={tz} value={tz}>{tz}</option>
+            <option key={tz} value={tz}>
+              {tz}
+            </option>
           ))}
         </select>
         <small style={{ color: '#9ca3af' }}>
@@ -84,9 +92,7 @@ export function TimezoneSelector() {
         {saving ? 'Guardando…' : 'Guardar zona horaria'}
       </button>
       {result && (
-        <small style={{ color: resultType === 'error' ? '#dc2626' : '#166534' }}>
-          {result}
-        </small>
+        <small style={{ color: resultType === 'error' ? '#dc2626' : '#166534' }}>{result}</small>
       )}
     </form>
   );

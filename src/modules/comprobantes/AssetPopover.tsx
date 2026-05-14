@@ -42,7 +42,9 @@ export function AssetPopover({ asset }: { asset: AssetData }) {
             <br />
             <small>{formatDateTimeClient(asset.createdAt)}</small>
             <br />
-            <small>{asset.mimeType} · {asset.size ? `${(asset.size / 1024).toFixed(0)} KB` : '?'}</small>
+            <small>
+              {asset.mimeType} · {asset.size ? `${(asset.size / 1024).toFixed(0)} KB` : '?'}
+            </small>
           </div>
           {asset.downloadStatus === 'READY' && asset.storageKey && (
             <>
@@ -50,20 +52,50 @@ export function AssetPopover({ asset }: { asset: AssetData }) {
                 <img
                   src={`/api/media/${asset.id}/preview`}
                   alt={asset.filename || 'Vista previa'}
-                  style={{ maxWidth: '100%', maxHeight: 400, objectFit: 'contain', borderRadius: 6 }}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: 400,
+                    objectFit: 'contain',
+                    borderRadius: 6,
+                  }}
                 />
               )}
               {isVideo && (
-                <video controls src={`/api/media/${asset.id}/preview`} style={{ maxWidth: '100%', maxHeight: 400 }} />
+                <video
+                  controls
+                  src={`/api/media/${asset.id}/preview`}
+                  style={{ maxWidth: '100%', maxHeight: 400 }}
+                />
               )}
               {isAudio && (
                 <audio controls src={`/api/media/${asset.id}/preview`} style={{ width: '100%' }} />
               )}
               {isPdf && (
-                <iframe src={`/api/media/${asset.id}/preview`} style={{ width: '100%', height: 400, border: 'none', borderRadius: 6 }} />
+                <iframe
+                  src={`/api/media/${asset.id}/preview`}
+                  style={{ width: '100%', height: 400, border: 'none', borderRadius: 6 }}
+                />
               )}
-              {!safeInlinePreview && <p className="text-muted">Vista previa inline bloqueada por seguridad para este tipo de archivo.</p>}
-              <a href={`/api/media/${asset.id}/download`} style={{ textAlign: 'center', display: 'block', fontSize: '0.85rem', padding: '4px 12px', background: 'var(--accent, #075e54)', color: '#fff', border: '1px solid var(--accent, #064e3b)', borderRadius: 2, textDecoration: 'none', fontWeight: 650 }}>
+              {!safeInlinePreview && (
+                <p className="text-muted">
+                  Vista previa inline bloqueada por seguridad para este tipo de archivo.
+                </p>
+              )}
+              <a
+                href={`/api/media/${asset.id}/download`}
+                style={{
+                  textAlign: 'center',
+                  display: 'block',
+                  fontSize: '0.85rem',
+                  padding: '4px 12px',
+                  background: 'var(--accent, #075e54)',
+                  color: '#fff',
+                  border: '1px solid var(--accent, #064e3b)',
+                  borderRadius: 2,
+                  textDecoration: 'none',
+                  fontWeight: 650,
+                }}
+              >
                 Descargar
               </a>
             </>

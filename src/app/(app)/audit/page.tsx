@@ -31,7 +31,11 @@ function buildPageUrl(params: AuditFilterParams, page: number): string {
   return `/audit?${sp.toString()}`;
 }
 
-export default async function AuditPage({ searchParams }: { searchParams?: Promise<AuditFilterParams & { page?: string }> }) {
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams?: Promise<AuditFilterParams & { page?: string }>;
+}) {
   const session = await requireRole(['ADMIN']);
   const params = (await searchParams) ?? {};
   const currentPage = Math.max(1, Number(params.page) || 1);
@@ -56,7 +60,11 @@ export default async function AuditPage({ searchParams }: { searchParams?: Promi
         <p>Consultá la actividad de ingresos, campañas, contactos, archivados y exportaciones.</p>
       </section>
       <section className="card" style={{ flexShrink: 0 }}>
-        <form className="grid-form" action="/audit" style={{ gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <form
+          className="grid-form"
+          action="/audit"
+          style={{ gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+        >
           <label>
             Desde
             <input type="date" name="from" defaultValue={params.from ?? ''} />
@@ -70,7 +78,9 @@ export default async function AuditPage({ searchParams }: { searchParams?: Promi
             <select name="action" defaultValue={params.action ?? ''}>
               <option value="">Todas</option>
               {AUDIT_ACTION_OPTIONS.map((action) => (
-                <option key={action} value={action}>{action}</option>
+                <option key={action} value={action}>
+                  {action}
+                </option>
               ))}
             </select>
           </label>
@@ -80,7 +90,11 @@ export default async function AuditPage({ searchParams }: { searchParams?: Promi
           </label>
           <label>
             Entidad
-            <input name="entityType" placeholder="contacto, comprobante..." defaultValue={params.entityType ?? ''} />
+            <input
+              name="entityType"
+              placeholder="contacto, comprobante..."
+              defaultValue={params.entityType ?? ''}
+            />
           </label>
           <label>
             ID
@@ -88,39 +102,130 @@ export default async function AuditPage({ searchParams }: { searchParams?: Promi
           </label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
             <button type="submit">Filtrar</button>
-            <Link href={exportHref(params)} style={{ fontSize: '0.8rem', padding: '4px 10px', background: 'var(--accent, #075e54)', color: '#fff', border: '1px solid var(--accent, #064e3b)', borderRadius: 2, textDecoration: 'none', fontWeight: 650 }}>Exportar CSV</Link>
+            <Link
+              href={exportHref(params)}
+              style={{
+                fontSize: '0.8rem',
+                padding: '4px 10px',
+                background: 'var(--accent, #075e54)',
+                color: '#fff',
+                border: '1px solid var(--accent, #064e3b)',
+                borderRadius: 2,
+                textDecoration: 'none',
+                fontWeight: 650,
+              }}
+            >
+              Exportar CSV
+            </Link>
           </div>
         </form>
       </section>
-      <section className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0 }}>
+      <section
+        className="card"
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+            flexShrink: 0,
+          }}
+        >
           <h3 style={{ margin: 0 }}>Eventos ({totalLogs})</h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {totalPages > 1 && (
               <div className="csv-pagination">
-                {currentPage > 1 && <Link href={buildPageUrl(params, currentPage - 1)} style={{ fontSize: '0.8rem', padding: '3px 10px', background: 'var(--accent, #075e54)', color: '#fff', border: '1px solid var(--accent, #064e3b)', borderRadius: 2, textDecoration: 'none', fontWeight: 650 }}>← Anterior</Link>}
-                <small>Pág {currentPage} de {totalPages}</small>
-                {currentPage < totalPages && <Link href={buildPageUrl(params, currentPage + 1)} style={{ fontSize: '0.8rem', padding: '3px 10px', background: 'var(--accent, #075e54)', color: '#fff', border: '1px solid var(--accent, #064e3b)', borderRadius: 2, textDecoration: 'none', fontWeight: 650 }}>Siguiente →</Link>}
+                {currentPage > 1 && (
+                  <Link
+                    href={buildPageUrl(params, currentPage - 1)}
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: '3px 10px',
+                      background: 'var(--accent, #075e54)',
+                      color: '#fff',
+                      border: '1px solid var(--accent, #064e3b)',
+                      borderRadius: 2,
+                      textDecoration: 'none',
+                      fontWeight: 650,
+                    }}
+                  >
+                    ← Anterior
+                  </Link>
+                )}
+                <small>
+                  Pág {currentPage} de {totalPages}
+                </small>
+                {currentPage < totalPages && (
+                  <Link
+                    href={buildPageUrl(params, currentPage + 1)}
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: '3px 10px',
+                      background: 'var(--accent, #075e54)',
+                      color: '#fff',
+                      border: '1px solid var(--accent, #064e3b)',
+                      borderRadius: 2,
+                      textDecoration: 'none',
+                      fontWeight: 650,
+                    }}
+                  >
+                    Siguiente →
+                  </Link>
+                )}
               </div>
             )}
           </div>
         </div>
         <div className="table-card" style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-          {logs.length ? <table>
-            <thead><tr><th>Fecha</th><th>Acción</th><th>Usuario</th><th>Entidad</th><th>IP</th><th>Detalle</th></tr></thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id}>
-                  <td style={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}>{formatDateTimeFull(log.createdAt)}</td>
-                  <td style={{ fontSize: '0.75rem' }}>{log.action}</td>
-                  <td style={{ fontSize: '0.75rem' }}>{log.user?.email ?? 'Sistema'}</td>
-                  <td style={{ fontSize: '0.75rem' }}>{log.entityType ?? '-'}{log.entityId ? <><br /><small>{log.entityId.slice(0, 20)}</small></> : null}</td>
-                  <td style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{log.ipAddress ?? '-'}</td>
-                  <td style={{ fontSize: '0.65rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}><code>{formatMetadata(log.metadataJson)}</code></td>
+          {logs.length ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Acción</th>
+                  <th>Usuario</th>
+                  <th>Entidad</th>
+                  <th>IP</th>
+                  <th>Detalle</th>
                 </tr>
-              ))}
-            </tbody>
-          </table> : <p className="empty-state">No hay eventos para esos filtros.</p>}
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id}>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
+                      {formatDateTimeFull(log.createdAt)}
+                    </td>
+                    <td style={{ fontSize: '0.75rem' }}>{log.action}</td>
+                    <td style={{ fontSize: '0.75rem' }}>{log.user?.email ?? 'Sistema'}</td>
+                    <td style={{ fontSize: '0.75rem' }}>
+                      {log.entityType ?? '-'}
+                      {log.entityId ? (
+                        <>
+                          <br />
+                          <small>{log.entityId.slice(0, 20)}</small>
+                        </>
+                      ) : null}
+                    </td>
+                    <td style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{log.ipAddress ?? '-'}</td>
+                    <td
+                      style={{
+                        fontSize: '0.65rem',
+                        maxWidth: 200,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      <code>{formatMetadata(log.metadataJson)}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="empty-state">No hay eventos para esos filtros.</p>
+          )}
         </div>
       </section>
     </div>

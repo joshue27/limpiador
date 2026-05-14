@@ -63,8 +63,8 @@ export default async function TemplatesPage({
         <p>Creá plantillas de mensaje enriquecidas y envialas a aprobación de Meta.</p>
       </section>
       <section className="card">
-          <TemplateBuilder editTemplate={editTemplate} />
-        </section>
+        <TemplateBuilder editTemplate={editTemplate} />
+      </section>
       <section className="card">
         <div
           style={{
@@ -76,11 +76,11 @@ export default async function TemplatesPage({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <strong>Plantillas ({totalTemplates})</strong>
-              <form action="/api/templates/sync" method="post" style={{ display: 'inline' }}>
-                <button type="submit" className="button-secondary" style={{ fontSize: '0.8rem' }}>
-                  Sincronizar con Meta
-                </button>
-              </form>
+            <form action="/api/templates/sync" method="post" style={{ display: 'inline' }}>
+              <button type="submit" className="button-secondary" style={{ fontSize: '0.8rem' }}>
+                Sincronizar con Meta
+              </button>
+            </form>
           </div>
           {totalPages > 1 && (
             <div className="csv-pagination">

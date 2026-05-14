@@ -17,7 +17,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const campaign = await prisma.campaign.findUnique({
     where: { id },
-    include: { recipients: { where: { status: 'PENDING' }, include: { contact: { select: { waId: true, displayName: true, phone: true } } } } },
+    include: {
+      recipients: {
+        where: { status: 'PENDING' },
+        include: { contact: { select: { waId: true, displayName: true, phone: true } } },
+      },
+    },
   });
 
   if (!campaign) {
@@ -25,17 +30,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   if (campaign.status !== 'DRAFT') {
-    return NextResponse.json({ error: 'Solo se pueden lanzar campañas en borrador.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Solo se pueden lanzar campañas en borrador.' },
+      { status: 400 },
+    );
   }
 
   if (campaign.recipients.length === 0) {
-    return NextResponse.json({ error: 'La campaña no tiene destinatarios pendientes.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'La campaña no tiene destinatarios pendientes.' },
+      { status: 400 },
+    );
   }
 
   const contentType = request.headers.get('content-type') ?? '';
-  const formData = contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart')
-    ? await request.formData()
-    : null;
+  const formData =
+    contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart')
+      ? await request.formData()
+      : null;
   const scheduledAt = formData?.get('scheduledAt')?.toString()?.trim();
 
   if (scheduledAt) {
@@ -44,14 +56,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
       return NextResponse.redirect(safeRedirect(request, '/campaigns'), { status: 303 });
     }
-    await prisma.campaign.update({ where: { id }, data: { status: 'QUEUED', scheduledAt: scheduledDate } });
+    await prisma.campaign.update({
+      where: { id },
+      data: { status: 'QUEUED', scheduledAt: scheduledDate },
+    });
 
     await writeAuditLog({
       userId: session.userId,
       action: AUDIT_ACTIONS.CAMPAIGN_DRAFT_CREATED,
       entityType: 'campaign',
       entityId: id,
-      metadata: { action: 'scheduled', scheduledAt: scheduledDate.toISOString(), totalRecipients: campaign.recipients.length },
+      metadata: {
+        action: 'scheduled',
+        scheduledAt: scheduledDate.toISOString(),
+        totalRecipients: campaign.recipients.length,
+      },
     });
 
     revalidatePath('/campaigns');
