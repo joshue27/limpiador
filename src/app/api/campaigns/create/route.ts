@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { AUDIT_ACTIONS } from '@/modules/audit/actions';
 import { writeAuditLog } from '@/modules/audit/audit';
-import { getVerifiedSession } from '@/modules/auth/guards';
+import { requirePermission } from '@/modules/auth/guards';
 
 export const runtime = 'nodejs';
 
@@ -20,10 +20,7 @@ function extractPlaceholders(body: string): string[] {
 }
 
 export async function POST(request: Request) {
-  const session = await getVerifiedSession();
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.redirect(safeRedirect(request, '/campaigns'), { status: 303 });
-  }
+  const session = await requirePermission('campaigns');
 
   const formData = await request.formData();
   const name = String(formData.get('name') ?? '').trim();

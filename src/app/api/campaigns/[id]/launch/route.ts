@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { AUDIT_ACTIONS } from '@/modules/audit/actions';
 import { writeAuditLog } from '@/modules/audit/audit';
-import { getVerifiedSession } from '@/modules/auth/guards';
+import { requirePermission } from '@/modules/auth/guards';
 import { launchCampaignImmediately } from '@/modules/campaigns/launch';
 import { enqueueCampaignSend } from '@/modules/queue/queues';
 
@@ -13,11 +13,7 @@ export const runtime = 'nodejs';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getVerifiedSession();
-
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Solo un administrador puede lanzar campañas.' }, { status: 403 });
-  }
+  const session = await requirePermission('campaigns');
 
   const campaign = await prisma.campaign.findUnique({
     where: { id },

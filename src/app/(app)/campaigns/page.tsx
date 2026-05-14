@@ -4,7 +4,11 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/modules/auth/guards';
 import { CampaignForm } from '@/modules/campaigns/CampaignForm';
 import { CampaignRow } from '@/modules/campaigns/CampaignRow';
-import { buildCampaignCsvHeaderMap, buildCampaignRecipientSummaryMap, buildCampaignResponseCountMap } from '@/modules/campaigns/list-metrics';
+import {
+  buildCampaignCsvHeaderMap,
+  buildCampaignRecipientSummaryMap,
+  buildCampaignResponseCountMap,
+} from '@/modules/campaigns/list-metrics';
 
 const campaignStatusLabels: Record<string, string> = {
   DRAFT: 'Borrador',
@@ -39,7 +43,9 @@ export default async function CampaignsPage({
     select: { name: true, language: true, body: true },
     orderBy: { name: 'asc' },
   });
-  const templateBodyByName = new Map(approvedTemplates.map((template) => [template.name, template.body]));
+  const templateBodyByName = new Map(
+    approvedTemplates.map((template) => [template.name, template.body]),
+  );
 
   const totalCampaigns = await prisma.campaign.count();
   const totalPages = Math.ceil(totalCampaigns / PAGE_SIZE);
@@ -60,14 +66,15 @@ export default async function CampaignsPage({
   });
 
   const campaignIds = campaigns.map((campaign) => campaign.id);
-  const [recipientCountRows, csvHeaderRows, responseCountRows] = campaignIds.length > 0
-    ? await Promise.all([
-        prisma.campaignRecipient.groupBy({
-          by: ['campaignId', 'status'],
-          where: { campaignId: { in: campaignIds } },
-          _count: { _all: true },
-        }),
-        prisma.$queryRaw<Array<{ campaignId: string; header: string }>>(Prisma.sql`
+  const [recipientCountRows, csvHeaderRows, responseCountRows] =
+    campaignIds.length > 0
+      ? await Promise.all([
+          prisma.campaignRecipient.groupBy({
+            by: ['campaignId', 'status'],
+            where: { campaignId: { in: campaignIds } },
+            _count: { _all: true },
+          }),
+          prisma.$queryRaw<Array<{ campaignId: string; header: string }>>(Prisma.sql`
           SELECT
             cr.campaign_id AS "campaignId",
             csv_keys.header AS "header"
@@ -77,7 +84,7 @@ export default async function CampaignsPage({
           GROUP BY cr.campaign_id, csv_keys.header
           ORDER BY cr.campaign_id ASC, csv_keys.header ASC
         `),
-        prisma.$queryRaw<Array<{ campaignId: string; responded: bigint | number }>>(Prisma.sql`
+          prisma.$queryRaw<Array<{ campaignId: string; responded: bigint | number }>>(Prisma.sql`
           SELECT
             cr.campaign_id AS "campaignId",
             COUNT(DISTINCT cr.id) AS responded
@@ -90,8 +97,8 @@ export default async function CampaignsPage({
           WHERE cr.campaign_id IN (${Prisma.join(campaignIds)})
           GROUP BY cr.campaign_id
         `),
-      ])
-    : [[], [], []];
+        ])
+      : [[], [], []];
   const recipientSummaries = buildCampaignRecipientSummaryMap(
     recipientCountRows.map((row) => ({
       campaignId: row.campaignId,
@@ -115,76 +122,137 @@ export default async function CampaignsPage({
         <p>Creá borradores, agregá contactos con CSV y lanzá envíos controlados.</p>
       </section>
 
-      {session.role === 'ADMIN' && (
-        <section className="card stack" style={{ flexShrink: 0 }}>
+      <section className="card stack" style={{ flexShrink: 0 }}>
           <h3>Nueva campaña</h3>
           <CampaignForm templates={approvedTemplates} />
         </section>
-      )}
 
-      <section className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0 }}>
+      <section
+        className="card"
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+            flexShrink: 0,
+          }}
+        >
           <h3 style={{ margin: 0 }}>Campañas ({totalCampaigns})</h3>
           {totalPages > 1 && (
             <div className="csv-pagination">
-              {currentPage > 1 && <a href={`/campaigns?page=${currentPage - 1}`} className="button-secondary" style={{ fontSize: '0.8rem' }}>← Anterior</a>}
-              <small>Pág {currentPage} de {totalPages}</small>
-              {currentPage < totalPages && <a href={`/campaigns?page=${currentPage + 1}`} className="button-secondary" style={{ fontSize: '0.8rem' }}>Siguiente →</a>}
+              {currentPage > 1 && (
+                <a
+                  href={`/campaigns?page=${currentPage - 1}`}
+                  className="button-secondary"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  ← Anterior
+                </a>
+              )}
+              <small>
+                Pág {currentPage} de {totalPages}
+              </small>
+              {currentPage < totalPages && (
+                <a
+                  href={`/campaigns?page=${currentPage + 1}`}
+                  className="button-secondary"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  Siguiente →
+                </a>
+              )}
             </div>
           )}
         </div>
         <div className="table-card" style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-          {campaigns.length ? <table>
-            <thead><tr><th>Campaña</th><th>Plantilla</th><th>Estado</th><th>Destinatarios</th><th>Creada por</th><th>Acciones</th></tr></thead>
-            <tbody>
-              {campaigns.map((campaign) => {
-                const summary = recipientSummaries.get(campaign.id) ?? { total: 0, counts: {} };
-                const counts = summary.counts;
-                const total = summary.total;
-                const sent = (counts.SENT ?? 0) + (counts.DELIVERED ?? 0) + (counts.READ ?? 0);
-                const delivered = (counts.DELIVERED ?? 0) + (counts.READ ?? 0);
-                const read = counts.READ ?? 0;
-                const responded = responsesByCampaign.get(campaign.id) ?? 0;
-                const done = sent;
-                const templateBody = templateBodyByName.get(campaign.templateName) ?? '';
-                const placeholders = extractPlaceholders(templateBody);
-                const csvHeaders = csvHeadersByCampaign.get(campaign.id) ?? [];
+          {campaigns.length ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Campaña</th>
+                  <th>Plantilla</th>
+                  <th>Estado</th>
+                  <th>Destinatarios</th>
+                  <th>Creada por</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((campaign) => {
+                  const summary = recipientSummaries.get(campaign.id) ?? { total: 0, counts: {} };
+                  const counts = summary.counts;
+                  const total = summary.total;
+                  const sent = (counts.SENT ?? 0) + (counts.DELIVERED ?? 0) + (counts.READ ?? 0);
+                  const delivered = (counts.DELIVERED ?? 0) + (counts.READ ?? 0);
+                  const read = counts.READ ?? 0;
+                  const responded = responsesByCampaign.get(campaign.id) ?? 0;
+                  const done = sent;
+                  const templateBody = templateBodyByName.get(campaign.templateName) ?? '';
+                  const placeholders = extractPlaceholders(templateBody);
+                  const csvHeaders = csvHeadersByCampaign.get(campaign.id) ?? [];
 
-                return (
-                  <tr key={campaign.id}>
-                    <td><strong>{campaign.name}</strong></td>
-                    <td>{campaign.templateName} ({campaign.templateLanguage})</td>
-                    <td>
-                      <span className={`status-pill status-${campaign.status.toLowerCase()}`}>
-                        {campaignStatusLabels[campaign.status] ?? campaign.status}
-                      </span>
-                    </td>
-                    <td>
-                      {campaign.status === 'SENDING' ? (
-                        <><small>{done}/{total}</small><div className="campaign-progress-bar"><div className="campaign-progress-fill" style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} /></div></>
-                      ) : (
-                        <small>Total: {total} · Enviados: {sent} · Entregados: {delivered} · Leídos: {read} · Respondidos: {responded} · Fallidos: {counts.FAILED ?? 0}</small>
-                      )}
-                    </td>
-                    <td>{campaign.createdBy.email}</td>
-                    <td>
-                      <CampaignRow
-                        campaignId={campaign.id}
-                        campaignName={campaign.name}
-                        status={campaign.status}
-                        totalRecipients={total}
-                        sent={sent}
-                        failed={counts.FAILED ?? 0}
-                        placeholders={placeholders}
-                        placeholderMap={(campaign.bodyPlaceholderMap as Record<string, string> | null) ?? {}}
-                        csvHeaders={csvHeaders}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table> : <p className="empty-state">No hay campañas todavía.</p>}
+                  return (
+                    <tr key={campaign.id}>
+                      <td>
+                        <strong>{campaign.name}</strong>
+                      </td>
+                      <td>
+                        {campaign.templateName} ({campaign.templateLanguage})
+                      </td>
+                      <td>
+                        <span className={`status-pill status-${campaign.status.toLowerCase()}`}>
+                          {campaignStatusLabels[campaign.status] ?? campaign.status}
+                        </span>
+                      </td>
+                      <td>
+                        {campaign.status === 'SENDING' ? (
+                          <>
+                            <small>
+                              {done}/{total}
+                            </small>
+                            <div className="campaign-progress-bar">
+                              <div
+                                className="campaign-progress-fill"
+                                style={{
+                                  width: `${total ? Math.round((done / total) * 100) : 0}%`,
+                                }}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <small>
+                            Total: {total} · Enviados: {sent} · Entregados: {delivered} · Leídos:{' '}
+                            {read} · Respondidos: {responded} · Fallidos: {counts.FAILED ?? 0}
+                          </small>
+                        )}
+                      </td>
+                      <td>{campaign.createdBy.email}</td>
+                      <td>
+                        <CampaignRow
+                          campaignId={campaign.id}
+                          campaignName={campaign.name}
+                          status={campaign.status}
+                          totalRecipients={total}
+                          sent={sent}
+                          failed={counts.FAILED ?? 0}
+                          placeholders={placeholders}
+                          placeholderMap={
+                            (campaign.bodyPlaceholderMap as Record<string, string> | null) ?? {}
+                          }
+                          csvHeaders={csvHeaders}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <p className="empty-state">No hay campañas todavía.</p>
+          )}
         </div>
       </section>
     </div>

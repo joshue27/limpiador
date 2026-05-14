@@ -3,16 +3,13 @@ import { safeRedirect } from '@/lib/safe-redirect';
 import { revalidatePath } from 'next/cache';
 
 import { prisma } from '@/lib/prisma';
-import { getVerifiedSession } from '@/modules/auth/guards';
+import { requirePermission } from '@/modules/auth/guards';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getVerifiedSession();
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.redirect(safeRedirect(request, '/campaigns'), { status: 303 });
-  }
+  const session = await requirePermission('campaigns');
 
   const campaign = await prisma.campaign.findUnique({ where: { id } });
   if (!campaign) {

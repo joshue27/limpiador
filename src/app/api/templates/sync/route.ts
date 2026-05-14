@@ -4,16 +4,13 @@ import { safeRedirect } from '@/lib/safe-redirect';
 import { revalidatePath } from 'next/cache';
 
 import { prisma } from '@/lib/prisma';
-import { getVerifiedSession } from '@/modules/auth/guards';
+import { requirePermission } from '@/modules/auth/guards';
 import { createWhatsAppCloudClient } from '@/modules/whatsapp/client';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
-  const session = await getVerifiedSession();
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.redirect(safeRedirect(request, '/templates'), { status: 303 });
-  }
+  const session = await requirePermission('templates');
 
   try {
     const client = createWhatsAppCloudClient();

@@ -4,19 +4,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { AUDIT_ACTIONS } from '@/modules/audit/actions';
 import { writeAuditLog } from '@/modules/audit/audit';
-import { getVerifiedSession } from '@/modules/auth/guards';
+import { requirePermission } from '@/modules/auth/guards';
 import { createWhatsAppCloudClient } from '@/modules/whatsapp/client';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
-  const session = await getVerifiedSession();
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.json(
-      { error: 'Solo un administrador puede crear plantillas.' },
-      { status: 403 },
-    );
-  }
+  const session = await requirePermission('templates');
 
   const body = (await request.json().catch(() => null)) as {
     name?: string;

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 
 import { prisma } from '@/lib/prisma';
-import { getVerifiedSession } from '@/modules/auth/guards';
+import { requirePermission } from '@/modules/auth/guards';
 import { listControlledTags } from '@/modules/tags/controlled-tags';
 
 export const runtime = 'nodejs';
@@ -14,10 +14,7 @@ function cleanPhone(value: string) {
 }
 
 export async function POST(request: Request) {
-  const session = await getVerifiedSession();
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
-  }
+  const session = await requirePermission('campaigns');
 
   const formData = await request.formData();
   const csvFile = formData.get('csv') as File | null;

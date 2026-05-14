@@ -31,11 +31,27 @@ export default async function TemplatesPage({
   });
 
   // Load template for copying/editing
-  let editTemplate: { name: string; language: string; category: string; body: string; header?: string | null; footer?: string | null } | undefined;
+  let editTemplate:
+    | {
+        name: string;
+        language: string;
+        category: string;
+        body: string;
+        header?: string | null;
+        footer?: string | null;
+      }
+    | undefined;
   if (params.copy) {
     const t = await prisma.messageTemplate.findUnique({ where: { id: params.copy } });
     if (t) {
-      editTemplate = { name: t.name, language: t.language, category: t.category, body: t.body, header: t.header, footer: t.footer };
+      editTemplate = {
+        name: t.name,
+        language: t.language,
+        category: t.category,
+        body: t.body,
+        header: t.header,
+        footer: t.footer,
+      };
     }
   }
 
@@ -46,52 +62,118 @@ export default async function TemplatesPage({
         <h2>Plantillas</h2>
         <p>Creá plantillas de mensaje enriquecidas y envialas a aprobación de Meta.</p>
       </section>
-      {session.role === 'ADMIN' && (
-        <section className="card">
+      <section className="card">
           <TemplateBuilder editTemplate={editTemplate} />
         </section>
-      )}
       <section className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <strong>Plantillas ({totalTemplates})</strong>
-            {session.role === 'ADMIN' && (
               <form action="/api/templates/sync" method="post" style={{ display: 'inline' }}>
-                <button type="submit" className="button-secondary" style={{ fontSize: '0.8rem' }}>Sincronizar con Meta</button>
+                <button type="submit" className="button-secondary" style={{ fontSize: '0.8rem' }}>
+                  Sincronizar con Meta
+                </button>
               </form>
-            )}
           </div>
           {totalPages > 1 && (
             <div className="csv-pagination">
-              {currentPage > 1 && <a href={`/templates?page=${currentPage - 1}${params.copy ? `&copy=${params.copy}` : ''}`} className="button-secondary" style={{ fontSize: '0.8rem' }}>← Anterior</a>}
-              <small>Pág {currentPage} de {totalPages}</small>
-              {currentPage < totalPages && <a href={`/templates?page=${currentPage + 1}${params.copy ? `&copy=${params.copy}` : ''}`} className="button-secondary" style={{ fontSize: '0.8rem' }}>Siguiente →</a>}
+              {currentPage > 1 && (
+                <a
+                  href={`/templates?page=${currentPage - 1}${params.copy ? `&copy=${params.copy}` : ''}`}
+                  className="button-secondary"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  ← Anterior
+                </a>
+              )}
+              <small>
+                Pág {currentPage} de {totalPages}
+              </small>
+              {currentPage < totalPages && (
+                <a
+                  href={`/templates?page=${currentPage + 1}${params.copy ? `&copy=${params.copy}` : ''}`}
+                  className="button-secondary"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  Siguiente →
+                </a>
+              )}
             </div>
           )}
         </div>
         <div className="table-card">
-          {templates.length ? <table>
-            <thead><tr><th>Nombre</th><th>Idioma</th><th>Categoría</th><th>Cuerpo</th><th>Estado Meta</th><th>Acciones</th></tr></thead>
-            <tbody>
-              {templates.map((template: { id: string; name: string; language: string; category: string; body: string; status: string; available: boolean }) => (
-                <tr key={template.id}>
-                  <td><strong>{template.name}</strong></td>
-                  <td>{template.language}</td>
-                  <td>{template.category}</td>
-                  <td><small>{template.body.slice(0, 90)}{template.body.length > 90 ? '…' : ''}</small></td>
-                  <td>
-                    <span className={`status-pill status-${template.status.toLowerCase().replaceAll('_', '-')}`}>
-                      {statusLabels[template.status] ?? template.status}
-                    </span>
-                    {template.status === 'REJECTED' ? <small className="status-muted"><br />Corrija y vuelva a crear</small> : null}
-                  </td>
-                  <td>
-                    <TemplateActions templateId={template.id} templateName={template.name} available={template.available} />
-                  </td>
+          {templates.length ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Idioma</th>
+                  <th>Categoría</th>
+                  <th>Cuerpo</th>
+                  <th>Estado Meta</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table> : <p className="empty-state">No hay plantillas todavía. Creá una y enviala a Meta para aprobación.</p>}
+              </thead>
+              <tbody>
+                {templates.map(
+                  (template: {
+                    id: string;
+                    name: string;
+                    language: string;
+                    category: string;
+                    body: string;
+                    status: string;
+                    available: boolean;
+                  }) => (
+                    <tr key={template.id}>
+                      <td>
+                        <strong>{template.name}</strong>
+                      </td>
+                      <td>{template.language}</td>
+                      <td>{template.category}</td>
+                      <td>
+                        <small>
+                          {template.body.slice(0, 90)}
+                          {template.body.length > 90 ? '…' : ''}
+                        </small>
+                      </td>
+                      <td>
+                        <span
+                          className={`status-pill status-${template.status.toLowerCase().replaceAll('_', '-')}`}
+                        >
+                          {statusLabels[template.status] ?? template.status}
+                        </span>
+                        {template.status === 'REJECTED' ? (
+                          <small className="status-muted">
+                            <br />
+                            Corrija y vuelva a crear
+                          </small>
+                        ) : null}
+                      </td>
+                      <td>
+                        <TemplateActions
+                          templateId={template.id}
+                          templateName={template.name}
+                          available={template.available}
+                        />
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <p className="empty-state">
+              No hay plantillas todavía. Creá una y enviala a Meta para aprobación.
+            </p>
+          )}
         </div>
       </section>
     </div>

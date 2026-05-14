@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  getVerifiedSession: vi.fn(),
+  requirePermission: vi.fn(),
   listControlledTags: vi.fn(),
   revalidatePath: vi.fn(),
   prisma: {
@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/modules/auth/guards', () => ({ getVerifiedSession: mocks.getVerifiedSession }));
+vi.mock('@/modules/auth/guards', () => ({ requirePermission: mocks.requirePermission }));
 vi.mock('@/modules/tags/controlled-tags', () => ({ listControlledTags: mocks.listControlledTags }));
 vi.mock('@/lib/prisma', () => ({ prisma: mocks.prisma }));
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
@@ -28,7 +28,7 @@ vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
 describe('campaign CSV import route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getVerifiedSession.mockResolvedValue({ userId: 'admin-1', role: 'ADMIN' });
+    mocks.requirePermission.mockResolvedValue({ userId: 'admin-1', role: 'ADMIN' });
     mocks.listControlledTags.mockResolvedValue([{ code: 'vip' }]);
     mocks.prisma.contact.createMany.mockResolvedValue({ count: 1 });
     mocks.prisma.campaign.findUnique.mockResolvedValue({ id: 'campaign-1', status: 'DRAFT' });
