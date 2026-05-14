@@ -86,6 +86,8 @@ CREATE TABLE "contacts" (
     "blocked" BOOLEAN NOT NULL DEFAULT false,
     "assigned_operator_id" TEXT,
     "last_inbound_at" TIMESTAMP(3),
+    "last_window_opened_at" TIMESTAMP(3),
+    "last_window_opened_by" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
