@@ -105,8 +105,8 @@ type CampaignSendPrisma = {
   messageTemplate: {
     findUnique: (input: {
       where: { name: string };
-      select: { body: true };
-    }) => Promise<{ body: string } | null>;
+      select: { body: true; footer: true; buttonsJson: true };
+    }) => Promise<{ body: string; footer: string | null; buttonsJson: unknown } | null>;
   };
   contact?: {
     findUnique: (input: {
@@ -307,7 +307,7 @@ export async function processCampaignSend(
   // Read template body to know which placeholders ({{1}}, {{2}}, etc.) it expects.
   const template = await campaignPrisma.messageTemplate.findUnique({
     where: { name: templateName },
-    select: { body: true },
+    select: { body: true, footer: true, buttonsJson: true },
   });
   const placeholderTokens = extractPlaceholders(template?.body ?? '');
 
@@ -411,6 +411,8 @@ export async function processCampaignSend(
         campaignRecipientId: recipientId,
         templateName,
         templateLanguage,
+        templateFooter: template?.footer ?? null,
+        templateButtons: Array.isArray(template?.buttonsJson) ? template.buttonsJson : [],
       } as Prisma.InputJsonValue;
 
       if (wamid) {

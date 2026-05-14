@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
@@ -11,10 +12,13 @@ export const runtime = 'nodejs';
 export async function POST(request: Request) {
   const session = await getVerifiedSession();
   if (!session || session.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Solo un administrador puede crear plantillas.' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'Solo un administrador puede crear plantillas.' },
+      { status: 403 },
+    );
   }
 
-  const body = await request.json().catch(() => null) as {
+  const body = (await request.json().catch(() => null)) as {
     name?: string;
     language?: string;
     category?: string;
@@ -51,7 +55,11 @@ export async function POST(request: Request) {
     if (headerText) {
       components.push({ type: 'HEADER', format: 'TEXT', text: headerText });
     } else if (headerUrl) {
-      components.push({ type: 'HEADER', format: headerFormat, example: { header_handle: [headerUrl] } });
+      components.push({
+        type: 'HEADER',
+        format: headerFormat,
+        example: { header_handle: [headerUrl] },
+      });
     }
 
     components.push({ type: 'BODY', text: bodyText });
@@ -97,6 +105,7 @@ export async function POST(request: Request) {
         body: bodyText,
         header: headerText || null,
         footer: footerText || null,
+        buttonsJson: buttons.length > 0 ? (buttons as Prisma.InputJsonValue) : undefined,
         status: result.status || 'PENDING',
       },
     });
@@ -111,6 +120,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, metaId: result.id });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Error al crear plantilla.' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Error al crear plantilla.' },
+      { status: 500 },
+    );
   }
 }

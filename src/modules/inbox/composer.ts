@@ -36,10 +36,18 @@ type ConversationTemplateSeed = {
   templateLanguage: string;
 };
 
+type ConversationTemplateButton = {
+  text: string;
+  type: string;
+  url?: string;
+};
+
 type ConversationTemplateRecord = {
   name: string;
   languageCode: string;
   body?: string | null;
+  footer?: string | null;
+  buttons?: ConversationTemplateButton[];
 };
 
 function renderTemplateBody(body: string | null | undefined, values: string[] = []) {
@@ -475,7 +483,7 @@ function defaultTemplateDeps(): SendConversationTemplateMessageDeps {
     listTemplates: async () => {
       const templates = await prisma.messageTemplate.findMany({
         where: { status: 'APPROVED' },
-        select: { name: true, language: true, body: true },
+        select: { name: true, language: true, body: true, footer: true, buttonsJson: true },
         orderBy: [{ name: 'asc' }, { language: 'asc' }],
       });
 
@@ -483,6 +491,22 @@ function defaultTemplateDeps(): SendConversationTemplateMessageDeps {
         name: template.name,
         languageCode: template.language,
         body: template.body,
+        footer: template.footer,
+        buttons: Array.isArray(template.buttonsJson)
+          ? template.buttonsJson
+              .filter(
+                (button): button is ConversationTemplateButton =>
+                  typeof button === 'object' &&
+                  button !== null &&
+                  typeof (button as { text?: unknown }).text === 'string' &&
+                  typeof (button as { type?: unknown }).type === 'string',
+              )
+              .map((button) => ({
+                text: button.text,
+                type: button.type,
+                url: typeof button.url === 'string' ? button.url : undefined,
+              }))
+          : [],
       }));
     },
     sendTemplate: (input) => createWhatsAppCloudClient().sendTemplate(input),
@@ -839,7 +863,13 @@ export async function sendConversationTemplateMessage(
     contactId: conversation.contact.id,
     body,
     sentAt,
-    rawJson: response,
+    rawJson: {
+      ...response,
+      templateName: template.name,
+      templateLanguage: template.languageCode,
+      templateFooter: template.footer ?? null,
+      templateButtons: template.buttons ?? [],
+    },
   });
   await deps.writeAuditLog({
     userId: input.session.userId,

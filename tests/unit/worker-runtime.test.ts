@@ -145,6 +145,21 @@ describe('campaign send finalization', () => {
           lastWindowOpenedBy: 'TEMPLATE',
         },
       });
+      expect(prisma.message.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            rawJson: expect.objectContaining({
+              templateName: 'hello_world',
+              templateLanguage: 'es',
+              templateFooter: 'Atención financiera',
+              templateButtons: [
+                { type: 'QUICK_REPLY', text: 'Entendido' },
+                { type: 'URL', text: 'Pagar ahora', url: 'https://example.test/pago' },
+              ],
+            }),
+          }),
+        }),
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -236,7 +251,14 @@ function createCampaignSendPrisma(input: { sentCount: number; pendingCountAfterF
       update: vi.fn(async () => undefined),
     },
     messageTemplate: {
-      findUnique: vi.fn(async () => ({ body: 'Hola {{1}}, tu número es {{2}}' })),
+      findUnique: vi.fn(async () => ({
+        body: 'Hola {{1}}, tu número es {{2}}',
+        footer: 'Atención financiera',
+        buttonsJson: [
+          { type: 'QUICK_REPLY', text: 'Entendido' },
+          { type: 'URL', text: 'Pagar ahora', url: 'https://example.test/pago' },
+        ],
+      })),
     },
     contact: {
       findUnique: vi.fn(async () => ({
@@ -245,6 +267,13 @@ function createCampaignSendPrisma(input: { sentCount: number; pendingCountAfterF
         lastWindowOpenedBy: 'TEMPLATE',
       })),
       update: vi.fn(async () => undefined),
+    },
+    conversation: {
+      upsert: vi.fn(async () => ({ id: 'conversation-1' })),
+    },
+    message: {
+      upsert: vi.fn(async () => undefined),
+      create: vi.fn(async () => undefined),
     },
   };
 }

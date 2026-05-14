@@ -213,6 +213,7 @@ CREATE TABLE "message_templates" (
     "body" TEXT NOT NULL,
     "header" TEXT,
     "footer" TEXT,
+    "buttons_json" JSONB,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "available" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

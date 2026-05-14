@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { safeRedirect } from '@/lib/safe-redirect';
 import { revalidatePath } from 'next/cache';
@@ -22,6 +23,19 @@ export async function POST(request: Request) {
       const bodyComponent = meta.components?.find((c) => c.type === 'BODY');
       const headerComponent = meta.components?.find((c) => c.type === 'HEADER');
       const footerComponent = meta.components?.find((c) => c.type === 'FOOTER');
+      const buttonsComponent = meta.components?.find((c) => c.type === 'BUTTONS') as
+        | {
+            buttons?: Array<{ type?: string; text?: string; url?: string }>;
+          }
+        | undefined;
+      const buttons =
+        buttonsComponent?.buttons
+          ?.filter((button) => button.text?.trim())
+          .map((button) => ({
+            type: button.type?.trim() || 'QUICK_REPLY',
+            text: button.text?.trim() || '',
+            url: button.url?.trim() || undefined,
+          })) ?? [];
 
       await prisma.messageTemplate.upsert({
         where: { name: meta.name },
@@ -33,6 +47,7 @@ export async function POST(request: Request) {
           body: bodyComponent?.text ?? '',
           header: headerComponent?.text ?? null,
           footer: footerComponent?.text ?? null,
+          buttonsJson: buttons.length > 0 ? (buttons as Prisma.InputJsonValue) : undefined,
           status: meta.status || 'PENDING',
         },
         update: {
@@ -43,6 +58,7 @@ export async function POST(request: Request) {
           body: bodyComponent?.text ?? undefined,
           header: headerComponent?.text ?? null,
           footer: footerComponent?.text ?? null,
+          buttonsJson: buttons.length > 0 ? (buttons as Prisma.InputJsonValue) : Prisma.DbNull,
         },
       });
     }

@@ -315,6 +315,7 @@ model MessageTemplate {
   body      String
   header    String?
   footer    String?
+  buttonsJson Json?   @map("buttons_json")
   status    String   @default("PENDING")
   available Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")

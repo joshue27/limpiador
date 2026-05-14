@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 // Import the label maps directly from the production module
 import {
+  getTemplateMessageMetadata,
   messageDirectionLabels,
   messageStatusLabels,
   messageTypeLabels,
@@ -41,6 +42,30 @@ describe('MessageHistory label maps', () => {
       expect(messageTypeLabels.STICKER).toBe('Sticker');
       expect(messageTypeLabels.TEMPLATE).toBe('Plantilla');
       expect(messageTypeLabels.UNKNOWN).toBe('Desconocido');
+    });
+  });
+
+  describe('getTemplateMessageMetadata', () => {
+    it('extracts footer and buttons from template rawJson', () => {
+      expect(
+        getTemplateMessageMetadata({
+          templateName: 'aviso_pago',
+          templateLanguage: 'es',
+          templateFooter: 'Universidad Example',
+          templateButtons: [
+            { type: 'QUICK_REPLY', text: 'Entendido' },
+            { type: 'URL', text: 'Pagar ahora', url: 'https://example.test/pago' },
+          ],
+        }),
+      ).toEqual({
+        templateName: 'aviso_pago',
+        templateLanguage: 'es',
+        footer: 'Universidad Example',
+        buttons: [
+          { type: 'QUICK_REPLY', text: 'Entendido' },
+          { type: 'URL', text: 'Pagar ahora', url: 'https://example.test/pago' },
+        ],
+      });
     });
   });
 });

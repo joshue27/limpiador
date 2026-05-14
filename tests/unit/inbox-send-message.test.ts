@@ -359,11 +359,18 @@ describe('sendConversationTemplateMessage', () => {
             lastInboundAt: new Date('2026-04-23T10:00:00.000Z'),
           },
         }),
-        listTemplates: vi
-          .fn()
-          .mockResolvedValue([
-            { name: 'reabrir_chat', languageCode: 'es', body: 'Hola, retomamos la conversación.' },
-          ]),
+        listTemplates: vi.fn().mockResolvedValue([
+          {
+            name: 'reabrir_chat',
+            languageCode: 'es',
+            body: 'Hola, retomamos la conversación.',
+            footer: 'Atención al estudiante',
+            buttons: [
+              { type: 'QUICK_REPLY', text: 'Entendido' },
+              { type: 'URL', text: 'Pagar ahora', url: 'https://example.test/pago' },
+            ],
+          },
+        ]),
         sendTemplate,
         updateConversation,
         updateContactWindow,
@@ -394,7 +401,16 @@ describe('sendConversationTemplateMessage', () => {
       contactId: 'contact-1',
       body: 'Hola, retomamos la conversación.',
       sentAt: new Date('2026-04-24T18:00:00.000Z'),
-      rawJson: { messages: [{ id: 'wamid-template-1' }] },
+      rawJson: {
+        messages: [{ id: 'wamid-template-1' }],
+        templateName: 'reabrir_chat',
+        templateLanguage: 'es',
+        templateFooter: 'Atención al estudiante',
+        templateButtons: [
+          { type: 'QUICK_REPLY', text: 'Entendido' },
+          { type: 'URL', text: 'Pagar ahora', url: 'https://example.test/pago' },
+        ],
+      },
     });
     expect(writeAuditLog).toHaveBeenCalledWith({
       userId: 'user-1',
@@ -424,7 +440,7 @@ describe('sendConversationTemplateMessage', () => {
         }),
         listTemplates: vi
           .fn()
-          .mockResolvedValue([{ name: 'seguimiento_pago', languageCode: 'es' }]),
+          .mockResolvedValue([{ name: 'seguimiento_pago', languageCode: 'es', buttons: [] }]),
         sendTemplate,
         updateConversation: vi.fn(),
         updateContactWindow,

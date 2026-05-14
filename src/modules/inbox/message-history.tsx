@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDateTimeClient } from '@/lib/client-date-format';
 import { Modal } from '@/components/Modal';
@@ -8,6 +8,7 @@ import { ComprobanteToggleButton } from '@/modules/inbox/ComprobanteToggleButton
 import { getConversationMessageAttachmentPreviews } from '@/modules/inbox/message-attachments';
 import type { ConversationSearchMatch } from '@/modules/inbox/chat-search';
 import { splitTextSearchMatches } from '@/modules/inbox/chat-search';
+import { parseWhatsAppText, type WhatsAppInlineToken } from '@/modules/templates/whatsapp-format';
 
 export const messageDirectionLabels: Record<string, string> = {
   INBOUND: 'Cliente',
@@ -41,6 +42,76 @@ function labelFor(labels: Record<string, string>, value: string) {
 function formatShortDate(date: Date | string | null) {
   if (!date) return 'Sin fecha';
   return formatDateTimeClient(date);
+}
+
+type TemplateButtonPreview = {
+  text: string;
+  type: string;
+  url?: string;
+};
+
+export function getTemplateMessageMetadata(rawJson: unknown): {
+  templateName: string | null;
+  templateLanguage: string | null;
+  footer: string | null;
+  buttons: TemplateButtonPreview[];
+} {
+  if (!rawJson || typeof rawJson !== 'object') {
+    return { templateName: null, templateLanguage: null, footer: null, buttons: [] };
+  }
+
+  const record = rawJson as {
+    templateName?: unknown;
+    templateLanguage?: unknown;
+    templateFooter?: unknown;
+    templateButtons?: unknown;
+  };
+
+  const buttons = Array.isArray(record.templateButtons)
+    ? record.templateButtons.flatMap((button) => {
+        if (!button || typeof button !== 'object') return [];
+        const candidate = button as { text?: unknown; type?: unknown; url?: unknown };
+        if (typeof candidate.text !== 'string' || typeof candidate.type !== 'string') return [];
+        return [
+          {
+            text: candidate.text,
+            type: candidate.type,
+            url: typeof candidate.url === 'string' ? candidate.url : undefined,
+          },
+        ];
+      })
+    : [];
+
+  return {
+    templateName: typeof record.templateName === 'string' ? record.templateName : null,
+    templateLanguage: typeof record.templateLanguage === 'string' ? record.templateLanguage : null,
+    footer: typeof record.templateFooter === 'string' ? record.templateFooter : null,
+    buttons,
+  };
+}
+
+function renderWhatsAppInlineTokens(tokens: WhatsAppInlineToken[]) {
+  return tokens.map((token, index) => {
+    const key = `${token.type}-${index}-${token.value}`;
+    if (token.type === 'bold') return <strong key={key}>{token.value}</strong>;
+    if (token.type === 'italic') return <em key={key}>{token.value}</em>;
+    if (token.type === 'strike') return <s key={key}>{token.value}</s>;
+    if (token.type === 'code') return <code key={key}>{token.value}</code>;
+    return <Fragment key={key}>{token.value}</Fragment>;
+  });
+}
+
+function renderFormattedTemplateText(text: string) {
+  return parseWhatsAppText(text).map((paragraph, paragraphIndex) => (
+    <p key={`template-paragraph-${paragraphIndex}`} className="message-template-paragraph">
+      {paragraph.lines.map((line, lineIndex) => (
+        <Fragment key={`template-line-${paragraphIndex}-${lineIndex}`}>
+          {renderWhatsAppInlineTokens(line)}
+          {lineIndex < paragraph.lines.length - 1 ? <br /> : null}
+        </Fragment>
+      ))}
+    </p>
+  ));
 }
 
 export type QuotedMessageState = {
@@ -117,15 +188,25 @@ export function MessageHistory({
     return () => clearTimeout(timer);
   }, [chatSearchActiveIndex, chatSearchMatches]);
 
-  function getMessageMatches(messageId: string, field: ConversationSearchMatch['field'], assetId?: string) {
-    return chatSearchMatches.filter((match) => (
-      match.messageId === messageId
-      && match.field === field
-      && (field !== 'filename' || match.assetId === assetId)
-    ));
+  function getMessageMatches(
+    messageId: string,
+    field: ConversationSearchMatch['field'],
+    assetId?: string,
+  ) {
+    return chatSearchMatches.filter(
+      (match) =>
+        match.messageId === messageId &&
+        match.field === field &&
+        (field !== 'filename' || match.assetId === assetId),
+    );
   }
 
-  function highlightText(text: string, messageId: string, field: ConversationSearchMatch['field'], assetId?: string) {
+  function highlightText(
+    text: string,
+    messageId: string,
+    field: ConversationSearchMatch['field'],
+    assetId?: string,
+  ) {
     if (!chatSearchMatches.length) return text;
     const fieldMatches = getMessageMatches(messageId, field, assetId);
     if (!fieldMatches.length) return text;
@@ -183,9 +264,7 @@ export function MessageHistory({
   const handleQuote = (message: QuotedMessageState) => {
     setQuotedMessage(message);
     setTimeout(() => {
-      const bodyInput = document.querySelector(
-        'input[name="body"]'
-      ) as HTMLInputElement | null;
+      const bodyInput = document.querySelector('input[name="body"]') as HTMLInputElement | null;
       bodyInput?.focus();
     }, 100);
   };
@@ -240,9 +319,7 @@ export function MessageHistory({
               className="load-older-sentinel"
               aria-busy={loadingOlder || undefined}
             >
-              {loadingOlder ? (
-                <span className="sr-only">Cargando mensajes anteriores…</span>
-              ) : null}
+              {loadingOlder ? <span className="sr-only">Cargando mensajes anteriores…</span> : null}
             </div>
             <div className="load-older-button-row">
               <button
@@ -260,38 +337,52 @@ export function MessageHistory({
           if (!message) return null;
 
           // Show quoted message preview if this message has a quoted message in rawJson
-          const rawJson = message.rawJson && typeof message.rawJson === 'object' ? message.rawJson as {
-            quotedMessageId?: string;
-            quotedMessagePreview?: { body: string | null; caption: string | null; type: string; direction: 'INBOUND' | 'OUTBOUND' };
-          } : null;
+          const rawJson =
+            message.rawJson && typeof message.rawJson === 'object'
+              ? (message.rawJson as {
+                  quotedMessageId?: string;
+                  quotedMessagePreview?: {
+                    body: string | null;
+                    caption: string | null;
+                    type: string;
+                    direction: 'INBOUND' | 'OUTBOUND';
+                  };
+                })
+              : null;
           const quotedMessagePreview =
-            rawJson?.quotedMessageId &&
-            rawJson.quotedMessagePreview
+            rawJson?.quotedMessageId && rawJson.quotedMessagePreview
               ? rawJson.quotedMessagePreview
               : null;
+          const templateMetadata = getTemplateMessageMetadata(message.rawJson);
+          const templateBodyMatches = getMessageMatches(message.id, 'body');
+          const showRichTemplateBody =
+            message.type === 'TEMPLATE' &&
+            typeof message.body === 'string' &&
+            templateBodyMatches.length === 0;
 
           return (
             <div key={message.id} className={`message-bubble ${message.direction.toLowerCase()}`}>
               {quotedMessagePreview && (
                 <div className="quoted-message-preview">
-                  <div className="quoted-message-header"><small>En respuesta a</small></div>
+                  <div className="quoted-message-header">
+                    <small>En respuesta a</small>
+                  </div>
                   <div className="quoted-message-content">
-                    {quotedMessagePreview.body ?? quotedMessagePreview.caption ?? `Adjunto: ${labelFor(
-                      messageTypeLabels,
-                      quotedMessagePreview.type
-                    )}`}
+                    {quotedMessagePreview.body ??
+                      quotedMessagePreview.caption ??
+                      `Adjunto: ${labelFor(messageTypeLabels, quotedMessagePreview.type)}`}
                   </div>
                 </div>
               )}
               <div className="message-bubble-header">
                 <small>
                   {labelFor(messageDirectionLabels, message.direction)} ·
-                  {labelFor(messageTypeLabels, message.type)} ·
-                  Estado: {labelFor(messageStatusLabels, message.status)} ·
+                  {labelFor(messageTypeLabels, message.type)} · Estado:{' '}
+                  {labelFor(messageStatusLabels, message.status)} ·
                   {formatShortDate(message.createdAt)}
                 </small>
                 <div className="message-bubble-actions">
-                  {(message.body || message.caption || message.mediaAssets?.length) ? (
+                  {message.body || message.caption || message.mediaAssets?.length ? (
                     <button
                       type="button"
                       className="quote-button"
@@ -306,32 +397,76 @@ export function MessageHistory({
                       type="button"
                       className="quote-button"
                       aria-label="Ocultar mensaje"
-                      onClick={() => setHideMenuMessageId(hideMenuMessageId === message.id ? null : message.id)}
+                      onClick={() =>
+                        setHideMenuMessageId(hideMenuMessageId === message.id ? null : message.id)
+                      }
                     >
                       ⋯
                     </button>
                     {hideMenuMessageId === message.id && (
                       <div className="hide-message-popover">
-                        <button type="button" onClick={() => { handleHide(message, 'me'); setHideMenuMessageId(null); }}>Ocultar para mí</button>
-                        <button type="button" onClick={() => { handleHide(message, 'everyone'); setHideMenuMessageId(null); }}>Ocultar para todos</button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleHide(message, 'me');
+                            setHideMenuMessageId(null);
+                          }}
+                        >
+                          Ocultar para mí
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleHide(message, 'everyone');
+                            setHideMenuMessageId(null);
+                          }}
+                        >
+                          Ocultar para todos
+                        </button>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
               {message.body ? (
-                <p>{highlightText(message.body, message.id, 'body')}</p>
+                showRichTemplateBody ? (
+                  <div className="message-template-body">
+                    {renderFormattedTemplateText(message.body)}
+                  </div>
+                ) : (
+                  <p>{highlightText(message.body, message.id, 'body')}</p>
+                )
               ) : null}
-              {message.caption && message.caption !== message.body ? (
-                <p className="message-caption">{highlightText(message.caption, message.id, 'caption')}</p>
+              {message.type === 'TEMPLATE' && templateMetadata.footer ? (
+                <p className="message-caption message-template-footer">{templateMetadata.footer}</p>
+              ) : message.caption && message.caption !== message.body ? (
+                <p className="message-caption">
+                  {highlightText(message.caption, message.id, 'caption')}
+                </p>
+              ) : null}
+              {message.type === 'TEMPLATE' && templateMetadata.buttons.length > 0 ? (
+                <div className="message-template-buttons" aria-label="Botones de la plantilla">
+                  {templateMetadata.buttons.map((button, index) => (
+                    <span
+                      key={`${button.type}-${button.text}-${index}`}
+                      className="message-template-button-chip"
+                    >
+                      {button.type === 'URL' ? '🔗 Enlace' : '↩ Botón'}: {button.text}
+                    </span>
+                  ))}
+                </div>
               ) : null}
               {getConversationMessageAttachmentPreviews(message).map((preview) => {
                 const sizeText = formatFileSize(preview.size);
-                const sizeBadge = sizeText ? <span className="file-size-badge">{sizeText}</span> : null;
-                const markButton = <ComprobanteToggleButton
-                  mediaAssetId={preview.key}
-                  initialMarked={preview.isComprobante}
-                />;
+                const sizeBadge = sizeText ? (
+                  <span className="file-size-badge">{sizeText}</span>
+                ) : null;
+                const markButton = (
+                  <ComprobanteToggleButton
+                    mediaAssetId={preview.key}
+                    initialMarked={preview.isComprobante}
+                  />
+                );
 
                 if (preview.kind === 'image') {
                   return (
@@ -375,7 +510,12 @@ export function MessageHistory({
                 if (preview.kind === 'video') {
                   return (
                     <div key={preview.key} className="message-media-preview">
-                      <video controls preload="metadata" src={preview.src} className="message-video-preview" />
+                      <video
+                        controls
+                        preload="metadata"
+                        src={preview.src}
+                        className="message-video-preview"
+                      />
                       <div className="message-media-actions">
                         {markButton}
                         <a href={preview.downloadHref} className="message-attachment-link">
@@ -388,14 +528,23 @@ export function MessageHistory({
                 }
                 return (
                   <div key={preview.key} className="message-media-preview message-document-preview">
-                    <div className="message-document-icon">
-                      {getFileExtension(preview)}
-                    </div>
+                    <div className="message-document-icon">{getFileExtension(preview)}</div>
                     <div style={{ minWidth: 0 }}>
-                      <a href={preview.href} className="message-attachment-link" style={{ fontSize: '0.8rem', wordBreak: 'break-word' }}>
+                      <a
+                        href={preview.href}
+                        className="message-attachment-link"
+                        style={{ fontSize: '0.8rem', wordBreak: 'break-word' }}
+                      >
                         {preview.label}
                       </a>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          marginTop: '2px',
+                        }}
+                      >
                         {markButton}
                         {preview.downloadStatus === 'FAILED' ? (
                           <button
@@ -412,22 +561,24 @@ export function MessageHistory({
                   </div>
                 );
               })}
-              {message.status === 'FAILED' && message.direction === 'OUTBOUND' && message.type === 'TEXT' && (
-                <button type="button" className="retry-button" onClick={() => handleRetry(message)}>
-                  Reenviar
-                </button>
-              )}
+              {message.status === 'FAILED' &&
+                message.direction === 'OUTBOUND' &&
+                message.type === 'TEXT' && (
+                  <button
+                    type="button"
+                    className="retry-button"
+                    onClick={() => handleRetry(message)}
+                  >
+                    Reenviar
+                  </button>
+                )}
             </div>
           );
         })}
       </div>
       <Modal open={expandedImage !== null} onClose={() => setExpandedImage(null)}>
         {expandedImage && (
-          <img
-            src={expandedImage.src}
-            alt={expandedImage.alt}
-            className="modal-image-full"
-          />
+          <img src={expandedImage.src} alt={expandedImage.alt} className="modal-image-full" />
         )}
       </Modal>
     </section>

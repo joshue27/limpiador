@@ -439,6 +439,7 @@ CREATE TABLE public.message_templates (
     body text NOT NULL,
     header text,
     footer text,
+    buttons_json jsonb,
     status text DEFAULT 'PENDING'::text NOT NULL,
     created_at timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp(3) without time zone NOT NULL
