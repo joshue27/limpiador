@@ -1,7 +1,13 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+import {
+  parseWhatsAppText,
+  type WhatsAppInlineToken,
+  wrapWhatsAppSelection,
+} from '@/modules/templates/whatsapp-format';
 
 const categoryOptions = [
   { value: 'MARKETING', label: 'Marketing' },
@@ -16,6 +22,13 @@ const headerFormats = [
   { value: 'DOCUMENT', label: 'Documento' },
 ];
 
+const whatsappFormatActions = [
+  { label: 'Negrita', prefix: '*', suffix: '*', sample: 'texto importante' },
+  { label: 'Cursiva', prefix: '_', suffix: '_', sample: 'texto de apoyo' },
+  { label: 'Tachado', prefix: '~', suffix: '~', sample: 'texto opcional' },
+  { label: 'Monoespacio', prefix: '```', suffix: '```', sample: 'código o dato' },
+] as const;
+
 type ButtonDef = { text: string; type: 'QUICK_REPLY' | 'URL'; url?: string };
 
 type EditTemplate = {
@@ -26,6 +39,36 @@ type EditTemplate = {
   header?: string | null;
   footer?: string | null;
 };
+
+function renderInlineTokens(tokens: WhatsAppInlineToken[]) {
+  return tokens.map((token, index) => {
+    const key = `${token.type}-${index}-${token.value}`;
+
+    if (token.type === 'bold') return <strong key={key}>{token.value}</strong>;
+    if (token.type === 'italic') return <em key={key}>{token.value}</em>;
+    if (token.type === 'strike') return <s key={key}>{token.value}</s>;
+    if (token.type === 'code') return <code key={key}>{token.value}</code>;
+    return <Fragment key={key}>{token.value}</Fragment>;
+  });
+}
+
+function renderPreviewText(text: string, emptyState: string) {
+  const paragraphs = parseWhatsAppText(text);
+  if (paragraphs.length === 0) {
+    return <p className="template-preview-paragraph">{emptyState}</p>;
+  }
+
+  return paragraphs.map((paragraph, paragraphIndex) => (
+    <p key={`paragraph-${paragraphIndex}`} className="template-preview-paragraph">
+      {paragraph.lines.map((line, lineIndex) => (
+        <Fragment key={`line-${paragraphIndex}-${lineIndex}`}>
+          {renderInlineTokens(line)}
+          {lineIndex < paragraph.lines.length - 1 ? <br /> : null}
+        </Fragment>
+      ))}
+    </p>
+  ));
+}
 
 export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate }) {
   const router = useRouter();
@@ -85,13 +128,52 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
     });
   }
 
+  function wrapBodySelection(prefix: string, suffix = prefix, sample = 'texto') {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = body.slice(start, end);
+    const content = selected || sample;
+    const replacement = wrapWhatsAppSelection(content, prefix, suffix);
+    const nextBody = `${body.slice(0, start)}${replacement}${body.slice(end)}`;
+
+    setBody(nextBody);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      if (selected) {
+        textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+      } else {
+        textarea.setSelectionRange(start + prefix.length, start + prefix.length + content.length);
+      }
+    });
+  }
+
+  function insertBodyText(snippet: string) {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const nextBody = `${body.slice(0, start)}${snippet}${body.slice(end)}`;
+    setBody(nextBody);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const nextCursor = start + snippet.length;
+      textarea.setSelectionRange(nextCursor, nextCursor);
+    });
+  }
+
   function addButton() {
     if (buttons.length >= 3) return;
     setButtons([...buttons, { text: '', type: 'QUICK_REPLY' }]);
   }
 
   function updateButton(index: number, field: keyof ButtonDef, value: string) {
-    setButtons(buttons.map((b, i) => i === index ? { ...b, [field]: value } : b));
+    setButtons(buttons.map((b, i) => (i === index ? { ...b, [field]: value } : b)));
   }
 
   function removeButton(index: number) {
@@ -104,7 +186,10 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
     setError(null);
     setSuccess(null);
 
-    const safeName = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const safeName = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '_');
     if (!safeName || !body.trim()) {
       setError('El nombre y el cuerpo son obligatorios.');
       setSaving(false);
@@ -124,10 +209,16 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
           headerUrl: headerUrl.trim() || undefined,
           body: body.trim(),
           footer: footer.trim() || undefined,
-          buttons: buttons.filter((b) => b.text.trim()).map((b) => ({ text: b.text.trim(), type: b.type, url: b.type === 'URL' ? b.url?.trim() || undefined : undefined })),
+          buttons: buttons
+            .filter((b) => b.text.trim())
+            .map((b) => ({
+              text: b.text.trim(),
+              type: b.type,
+              url: b.type === 'URL' ? b.url?.trim() || undefined : undefined,
+            })),
         }),
       });
-      const result = await res.json() as { ok?: boolean; error?: string };
+      const result = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !result.ok) {
         setError(result.error ?? 'Error al crear la plantilla.');
         return;
@@ -165,16 +256,30 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
         <div className="template-meta-row">
           <label>
             <span>Nombre</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="saludo_bienvenida" required />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="saludo_bienvenida"
+              required
+            />
           </label>
           <label>
             <span>Idioma</span>
-            <input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="es" required />
+            <input
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              placeholder="es"
+              required
+            />
           </label>
           <label>
             <span>Categoría</span>
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              {categoryOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {categoryOptions.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
             </select>
           </label>
         </div>
@@ -185,18 +290,30 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
             <label>
               <span>Tipo</span>
               <select value={headerFormat} onChange={(e) => setHeaderFormat(e.target.value)}>
-                {headerFormats.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+                {headerFormats.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
               </select>
             </label>
             {headerFormat === 'TEXT' ? (
               <label style={{ gridColumn: 'span 2' }}>
                 <span>Texto del encabezado</span>
-                <input value={headerText} onChange={(e) => setHeaderText(e.target.value)} placeholder="Oferta especial para vos" />
+                <input
+                  value={headerText}
+                  onChange={(e) => setHeaderText(e.target.value)}
+                  placeholder="Oferta especial para vos"
+                />
               </label>
             ) : (
               <label style={{ gridColumn: 'span 2' }}>
                 <span>URL del medio (Meta la descarga al crear)</span>
-                <input value={headerUrl} onChange={(e) => setHeaderUrl(e.target.value)} placeholder="https://ejemplo.com/imagen.jpg" />
+                <input
+                  value={headerUrl}
+                  onChange={(e) => setHeaderUrl(e.target.value)}
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                />
               </label>
             )}
           </div>
@@ -206,23 +323,59 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
           <legend>Cuerpo</legend>
           <label>
             <span>Texto del mensaje</span>
-            <div className="template-variable-pills">
-              {contactFields.map((field) => (
+            <div className="template-editor-toolbar">
+              <div className="template-variable-pills">
+                {contactFields.map((field) => (
+                  <button
+                    key={field.label}
+                    type="button"
+                    className="template-variable-pill"
+                    title={field.description}
+                    onClick={insertVariable}
+                  >
+                    + {field.label}
+                  </button>
+                ))}
+              </div>
+              <div className="template-format-pills">
+                {whatsappFormatActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className="template-format-pill"
+                    onClick={() => wrapBodySelection(action.prefix, action.suffix, action.sample)}
+                  >
+                    {action.label}
+                  </button>
+                ))}
                 <button
-                  key={field.label}
                   type="button"
-                  className="template-variable-pill"
-                  title={field.description}
-                  onClick={insertVariable}
+                  className="template-format-pill"
+                  onClick={() => insertBodyText('\n')}
                 >
-                  + {field.label}
+                  Salto de línea
                 </button>
-              ))}
+              </div>
             </div>
-            <textarea ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} placeholder={"Hola {{1}}, tu consulta sobre {{2}} fue recibida. Te contactaremos pronto."} rows={3} required />
+            <textarea
+              ref={bodyRef}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={
+                'Hola {{1}}, tu consulta sobre {{2}} fue recibida. Te contactaremos pronto.'
+              }
+              rows={9}
+              required
+            />
           </label>
-          <small>Usá {'{{1}}'}, {'{{2}}'}, {'{{3}}'} para variables. Las pills insertan el siguiente número disponible.<br />
-          {'{{1}}'} = Nombre · {'{{2}}'} = Teléfono · {'{{3}}'} = WA ID</small>
+          <small className="template-editor-hint">
+            Usá {'{{1}}'}, {'{{2}}'}, {'{{3}}'} para variables. Las pills insertan el siguiente
+            número disponible.
+            <br />
+            {'{{1}}'} = Nombre · {'{{2}}'} = Teléfono · {'{{3}}'} = WA ID
+            <br />
+            Formato WhatsApp: *negrita* · _cursiva_ · ~tachado~ · ```monoespacio```
+          </small>
           {variables.length > 0 && (
             <div className="template-variables">
               <span className="template-variables-label">Valores de muestra para vista previa</span>
@@ -246,7 +399,11 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
           <legend>Pie de página (opcional)</legend>
           <label>
             <span>Texto</span>
-            <input value={footer} onChange={(e) => setFooter(e.target.value)} placeholder="Gracias por confiar en nosotros." />
+            <input
+              value={footer}
+              onChange={(e) => setFooter(e.target.value)}
+              placeholder="Gracias por confiar en nosotros."
+            />
           </label>
         </fieldset>
 
@@ -257,11 +414,20 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
               <div className="template-meta-row">
                 <label>
                   <span>Texto</span>
-                  <input value={btn.text} onChange={(e) => updateButton(i, 'text', e.target.value)} placeholder="Botón" />
+                  <input
+                    value={btn.text}
+                    onChange={(e) => updateButton(i, 'text', e.target.value)}
+                    placeholder="Botón"
+                  />
                 </label>
                 <label>
                   <span>Tipo</span>
-                  <select value={btn.type} onChange={(e) => updateButton(i, 'type', e.target.value as 'QUICK_REPLY' | 'URL')}>
+                  <select
+                    value={btn.type}
+                    onChange={(e) =>
+                      updateButton(i, 'type', e.target.value as 'QUICK_REPLY' | 'URL')
+                    }
+                  >
                     <option value="QUICK_REPLY">Respuesta rápida</option>
                     <option value="URL">Enlace</option>
                   </select>
@@ -269,15 +435,27 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
                 {btn.type === 'URL' && (
                   <label>
                     <span>URL</span>
-                    <input value={btn.url ?? ''} onChange={(e) => updateButton(i, 'url', e.target.value)} placeholder="https://" />
+                    <input
+                      value={btn.url ?? ''}
+                      onChange={(e) => updateButton(i, 'url', e.target.value)}
+                      placeholder="https://"
+                    />
                   </label>
                 )}
               </div>
-              <button type="button" className="button-secondary compact-action-button" onClick={() => removeButton(i)}>Quitar</button>
+              <button
+                type="button"
+                className="button-secondary compact-action-button"
+                onClick={() => removeButton(i)}
+              >
+                Quitar
+              </button>
             </div>
           ))}
           {buttons.length < 3 && (
-            <button type="button" className="button-secondary" onClick={addButton}>＋ Agregar botón</button>
+            <button type="button" className="button-secondary" onClick={addButton}>
+              ＋ Agregar botón
+            </button>
           )}
         </fieldset>
 
@@ -300,32 +478,58 @@ export function TemplateBuilder({ editTemplate }: { editTemplate?: EditTemplate 
           {hasHeader && (
             <div className="template-preview-section template-preview-section-header">
               {headerFormat === 'TEXT' ? (
-                <strong>{headerText || 'Encabezado'}</strong>
+                <div className="template-preview-rich template-preview-rich-compact">
+                  {renderPreviewText(headerText || 'Encabezado', 'Encabezado')}
+                </div>
               ) : headerUrl.trim() ? (
                 <div className="template-preview-media">
-                  <img src={headerUrl} alt="" className="template-preview-header-img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  <span>{headerFormat === 'IMAGE' ? '🖼 Imagen' : headerFormat === 'VIDEO' ? '🎬 Video' : '📄 Documento'}</span>
+                  <img
+                    src={headerUrl}
+                    alt=""
+                    className="template-preview-header-img"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <span>
+                    {headerFormat === 'IMAGE'
+                      ? '🖼 Imagen'
+                      : headerFormat === 'VIDEO'
+                        ? '🎬 Video'
+                        : '📄 Documento'}
+                  </span>
                 </div>
               ) : (
-                <div className="template-preview-media">📎 {headerFormat === 'IMAGE' ? 'Imagen' : headerFormat === 'VIDEO' ? 'Video' : 'Documento'}</div>
+                <div className="template-preview-media">
+                  📎{' '}
+                  {headerFormat === 'IMAGE'
+                    ? 'Imagen'
+                    : headerFormat === 'VIDEO'
+                      ? 'Video'
+                      : 'Documento'}
+                </div>
               )}
             </div>
           )}
-          <div className="template-preview-section">
-            <p>{previewBody}</p>
+          <div className="template-preview-section template-preview-section-body">
+            {renderPreviewText(previewBody, 'Cuerpo del mensaje.')}
           </div>
           {footer.trim() && (
             <div className="template-preview-section template-preview-section-footer">
-              <small>{footer}</small>
+              <div className="template-preview-rich template-preview-rich-muted">
+                {renderPreviewText(footer, '')}
+              </div>
             </div>
           )}
           {buttons.length > 0 && (
             <div className="template-preview-section template-preview-buttons">
-              {buttons.filter((b) => b.text.trim()).map((btn, i) => (
-                <div key={i} className="template-preview-button">
-                  {btn.type === 'URL' ? '🔗' : '↩'} {btn.text || 'Botón'}
-                </div>
-              ))}
+              {buttons
+                .filter((b) => b.text.trim())
+                .map((btn, i) => (
+                  <div key={i} className="template-preview-button">
+                    {btn.type === 'URL' ? '🔗' : '↩'} {btn.text || 'Botón'}
+                  </div>
+                ))}
             </div>
           )}
         </div>

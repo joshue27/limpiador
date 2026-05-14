@@ -1,6 +1,13 @@
 :root {
   color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   background: #eef1f5;
   color: #18181b;
 }
@@ -485,6 +492,42 @@ small {
   gap: 12px;
 }
 
+.template-editor-toolbar {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.template-format-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.template-format-pill {
+  font-size: 0.72rem;
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.template-format-pill:hover {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+}
+
+.template-editor-hint {
+  display: block;
+  line-height: 1.55;
+  color: #52525b;
+}
+
 .template-row,
 .template-meta-row {
   display: grid;
@@ -579,6 +622,15 @@ small {
   font-size: 12px;
 }
 
+.template-preview-phone code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.92em;
+  background: #f1f5f9;
+  border: 1px solid #dbeafe;
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
 .template-preview-header {
   background: var(--accent, #075e54);
   color: #fff;
@@ -600,6 +652,34 @@ small {
 
 .template-preview-section p {
   margin: 0;
+}
+
+.template-preview-section-body {
+  line-height: 1.55;
+}
+
+.template-preview-rich {
+  display: grid;
+  gap: 8px;
+}
+
+.template-preview-rich-compact {
+  gap: 4px;
+}
+
+.template-preview-rich-muted {
+  color: #71717a;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.template-preview-paragraph {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.template-preview-paragraph + .template-preview-paragraph {
+  margin-top: 10px;
 }
 
 .template-preview-section-header {
@@ -2061,7 +2141,9 @@ th {
   padding: 28px 16px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
   background: #fafafa;
 }
 .csv-drop-zone:hover,
@@ -2148,7 +2230,7 @@ th {
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 10px;
   min-width: 200px;
   margin-top: 4px;
@@ -2398,7 +2480,7 @@ th {
   color: #1f2937;
   padding: 14px 20px;
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   z-index: 100;
   display: flex;
   align-items: center;
@@ -2430,13 +2512,25 @@ th {
 }
 
 @keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .login-page {
@@ -2456,7 +2550,7 @@ th {
   padding: 28px;
   width: 100%;
   max-width: 720px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   text-align: center;
 }
 
